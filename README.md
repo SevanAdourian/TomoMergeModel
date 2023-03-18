@@ -2,24 +2,24 @@
 Author: Sevan Adourian
 This package has the purpose to smoothly merge a global model within a global model.
 
-# First you need to create the conda environment using the environment file
-# Discard this part if you already have such an environment
+### First you need to create the conda environment using the environment file
+#### Discard this part if you already have such an environment
 conda env create -f environment.yaml
 
-# Add the ucbpy libraries to what is read by python
+### Add the ucbpy libraries to what is read by python
 cd /path/to/ucbpy/python3/libraries/
 conda develop .
 
-# If you have a PYTHONPATH defined by the bash_rc by default, discard it
+##### If you have a PYTHONPATH defined by the bash_rc by default, discard it
 PYTHONPATH=''
 
-# You are now ready to use the package
+##### You are now ready to use the package
 
-# Download glad-m25 (to run the example)
+### Download glad-m25 (to run the example)
 wget https://ds.iris.edu/files/products/emc/emc-files/glad-m25-vp-0.0-n4.nc
 mv glad-m25-vp-0.0-n4.nc ./Data/netcdf
 
-##### First step, write asciis of your model at depths of interest #####
+### First step, write asciis of your model at depths of interest #####
 To run this code you need to edit conf.yaml and simply run
 python 0_netcdf_to_ascii.py conf.yaml
 
@@ -35,7 +35,7 @@ For those of you using SEMUCB, I directly provide the ascii files (since the net
 defined at enough depth knots to interpolate).
 See in ./Data/ascii/semucb
 
-##### Second step, perform the merging #####
+### Second step, perform the merging #####
 If you followed step 1, you can go ahead and directly run 
 python 1_TomoModelMerge.py conf.yaml
 
