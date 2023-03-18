@@ -1,0 +1,23 @@
+name: mergemod
+channels:
+    - conda-forge
+dependencies:
+    - python=3.10.8
+    - fftw>=3.3.8
+    - liblapack>=3.8
+    - numpy=1.23.5
+    - scipy>=0.14.0
+    - matplotlib-base>=3.3
+    - astropy>=4.0
+    - xarray
+    - requests
+    - pooch>=1.1
+    - pandas
+    - cartopy>=0.18.0
+    - gmt>=6.1.1
+    - pygmt>=0.3.0
+    - palettable>=3.3
+    - jupyter
+    - ducc0>=0.15
+    - flake8
+    - conda-build
