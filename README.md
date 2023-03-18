@@ -1,4 +1,3 @@
-################################
 Author: Sevan Adourian
 This package has the purpose to smoothly merge a global model within a global model.
 
