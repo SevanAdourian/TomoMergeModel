@@ -298,8 +298,6 @@ def apply_window(conf, global_grid, global_clm, reg_grid, reg_win_energy_grid, d
     
 # -------- MAIN ----------#
 if __name__ == '__main__':
-    # Initiate computing slices on multiple processes
-    # multiprocessing.set_start_method('spawn')
 
     t0 = time.time()
     # Load yaml file
@@ -310,25 +308,27 @@ if __name__ == '__main__':
             conf = setup(conf)
         print('Loaded the input file and configured the run')
 
-    # Sequential way:
+    # Sequential way (debug only):
     # Loop over depths:
-    # sys.exit()
-    for depth in conf['depth_knots'][0:1]:
+    # for depth in conf['depth_knots'][0:1]:
     
-        process_slice(conf, depth)
+    #     process_slice(conf, depth)
     
-    # Loop over depths with multiprocessing:
-    # depths = conf['depth_knots']  # list of slices to process
-    # n_depths = len(depths)  # number of times to run process_slice
+    # Initiate computing slices on multiple processes
+    multiprocessing.set_start_method('spawn')
+
+    Loop over depths with multiprocessing:
+    depths = conf['depth_knots']  # list of slices to process
+    n_depths = len(depths)  # number of times to run process_slice
     
-    # with multiprocessing.Pool() as pool:
-    #     for i in range(n_depths):
-    #         print("Processing depth "+str(depths[i]))
-    #         pool.apply_async(process_slice, args=(conf, depths[i]))
+    with multiprocessing.Pool() as pool:
+        for i in range(n_depths):
+            print("Processing depth "+str(depths[i]))
+            pool.apply_async(process_slice, args=(conf, depths[i]))
         
-    #     # Wait for all processes to complete
-    #     pool.close()
-    #     pool.join()
+        # Wait for all processes to complete
+        pool.close()
+        pool.join()
 
     t1 = time.time()
     print("Generated the merged model in "+str(t1-t0)+" seconds")

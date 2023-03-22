@@ -1,6 +1,6 @@
 #!/bin/bash
 
-depth=0050
+depth=0030
 input_file='../ascii/regional_'$depth'.xyz'
 output_file='./regional_'$depth'.ps'
 range_global="-R0/360/-90/90"
@@ -52,7 +52,7 @@ F       87 0 0
 N       200
 EOF
 
-gmt makecpt -I -T-0.2/0.2/0.001 -D -Z -C"panoply_white.cpt" > "tomo.cpt"
+gmt makecpt -I -T-0.1/0.1/0.001 -D -Z -C"panoply_white.cpt" > "tomo.cpt"
 
 # gmt surface $range_global -H1 -I0.5 $input_file -Goutgrid.grd
 gmt surface $range_global -I0.5 $input_file -Goutgrid.grd
