@@ -317,7 +317,7 @@ if __name__ == '__main__':
     # Initiate computing slices on multiple processes
     multiprocessing.set_start_method('spawn')
 
-    Loop over depths with multiprocessing:
+    # Loop over depths with multiprocessing:
     depths = conf['depth_knots']  # list of slices to process
     n_depths = len(depths)  # number of times to run process_slice
     
