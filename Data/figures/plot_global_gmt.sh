@@ -1,7 +1,7 @@
 #!/bin/bash
 
-depth=0050
-input_file='../ascii/semucb/global_50.xyz'
+depth=$1
+input_file='../ascii/global_'$depth'.xyz'
 output_file='./global_'$depth'km.ps'
 range_global="-180/180/-90/90"
 # range_global="0/360/-90/90"

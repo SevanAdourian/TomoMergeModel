@@ -1,6 +1,6 @@
 #!/bin/bash
 
-depth=0030
+depth=$1
 input_file='../ascii/merged_'$depth'.xyz'
 output_file='./merged_'$depth'km.ps'
 # range_global="-180/180/-90/90"

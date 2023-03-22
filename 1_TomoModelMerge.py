@@ -232,7 +232,7 @@ def create_window(conf, reg_field, global_clm):
     #-----------
     if conf['win_type'] == 'spherical': # spherical or rectangular'
         #   - Construct spherical harmonic window function from mask
-        reg_win=pyshtools.SHWindow.from_mask(reg_zmesh_mask,lwin=conf['reg_lwin'])
+        reg_win=pyshtools.SHWindow.from_mask(reg_zmesh_mask,lwin=conf['reg_nwin'])
         reg_win_clm=pyshtools.SHWindow.to_shcoeffs(reg_win,0)
         reg_win_clm_pad=reg_win_clm.pad(global_clm.lmax)  #Pad to match global clm
         

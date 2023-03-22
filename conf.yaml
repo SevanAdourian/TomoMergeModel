@@ -13,13 +13,13 @@ path_to_figures: './Data/figures'
 
 ## Parameters to create region
 reg_lwin: 89 # Lmax of regional model (in spherical harmonics)
-reg_nwin: 100 # Maximum number of windowing functions. higher = sharper
+reg_nwin: 40 # Maximum number of windowing functions. higher = sharper
 
 # Coordinates of the region one wants to merge in a gloal model
-lon_min_mask: 65.0
-lon_max_mask: 90.0
-lat_min_mask: 20.0      # possible range: -90, 90 deg
-lat_max_mask: 40.0       # possible range: -90, 90 deg
+lon_min_mask: 80.0
+lon_max_mask: 160.0
+lat_min_mask: -5.0      # possible range: -90, 90 deg
+lat_max_mask: 45.0       # possible range: -90, 90 deg
 # Type of windowing
 win_type: spherical # spherical or rectangular
 

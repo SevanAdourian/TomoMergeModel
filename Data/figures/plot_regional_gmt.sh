@@ -1,6 +1,6 @@
 #!/bin/bash
 
-depth=0030
+depth=$1
 input_file='../ascii/regional_'$depth'.xyz'
 output_file='./regional_'$depth'.ps'
 range_global="-R0/360/-90/90"
