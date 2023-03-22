@@ -88,9 +88,10 @@ def sorting_columns(lon_lat_field):
     Sort first on lon (col1 0to360) then lat (col2 from 90to-90) from NorthWest to SouthEast 
     '''
     
-    ind = np.lexsort((lon_lat_field[:,0],-lon_lat_field[:,1]))
+    # ind = np.lexsort((lon_lat_field[:,0],-lon_lat_field[:,1]))
+    ind = np.lexsort((lon_lat_field[:,0], -lon_lat_field[:,1]))
     lon_lat_field = lon_lat_field[ind]
-    
+    # pdb.set_trace()
     return lon_lat_field
 
 def process_slice(conf, depth):
@@ -107,6 +108,7 @@ def process_slice(conf, depth):
         path_to_regional_ascii = conf['base_regional_ascii_files']+str(format(int(depth),'04d'))+".xyz"
         regional_tomo = process_ascii_files(conf, path_to_regional_ascii)
         zmesh_regional = reshape_field(regional_tomo)
+        
         reg_grid, reg_clm = convert_to_spherical_harmonics(zmesh_regional, conf["reg_lwin"])
         
         # Doing mask windowing
@@ -136,7 +138,8 @@ def write_model(conf, depth, grid):
     c_lonlat = np.transpose(np.reshape(m_lonlat,(2,len(c_lats)*len(c_lons))))
     c_dv = np.reshape(m_dv,(len(c_lats)*len(c_lons),1))
     c_lonlatdv = np.column_stack((c_lonlat,c_dv))
-    
+
+    # ForkedPdb().set_trace()
     model_out = conf['base_merged_ascii_files']+str(format(int(depth),'04d'))+".xyz"
     dataf = pd.DataFrame(data=c_lonlatdv, columns=('LON','LAT','DV') ) 
     dataf.to_csv(model_out, sep=' ', header=True, float_format='%.4f', index=False)
@@ -159,8 +162,9 @@ def process_ascii_files(conf, path_to_ascii_file):
         lon_lat_field = sorting_columns(lon_lat_field)
     else:
         print("Longitudes already in the 0/360 range, just sorting")
-        sorting_columns(lon_lat_field)
-        
+        # pdb.set_trace()
+        lon_lat_field = sorting_columns(lon_lat_field)
+        # print(lon_lat_field)
     return lon_lat_field
 
 def reshape_field(lon_lat_field):
@@ -187,7 +191,12 @@ def convert_to_spherical_harmonics(zmesh, reg_lwin):
 
 def plot_map_and_spectra(conf, grid_object, clm_object, file_name):
     fig, (col1, col2) = plt.subplots(2, 1)
+    # fig = plt.figure()
+    # ax = plt.axes(projection=ccrs.Robinson())
+    # ax.set_global()
     grid_object.plot(ax=col1,colorbar='right', cb_label='Power', show=False)
+    # grid_object.plot(ax=ax,colorbar='right', cb_label='Power', show=False)
+    # ax.coastlines()
     clm_object.plot_spectrum(ax=col2)
     fig.legend(loc = 'upper right')
     fig.savefig(file_name, dpi=400) #Original global data
@@ -290,8 +299,9 @@ def apply_window(conf, global_grid, global_clm, reg_grid, reg_win_energy_grid, d
 # -------- MAIN ----------#
 if __name__ == '__main__':
     # Initiate computing slices on multiple processes
-    multiprocessing.set_start_method('spawn')
+    # multiprocessing.set_start_method('spawn')
 
+    t0 = time.time()
     # Load yaml file
     for conf_file in sys.argv[1:]:
         print('using configuration loaded from: %s' % (conf_file))
@@ -302,23 +312,23 @@ if __name__ == '__main__':
 
     # Sequential way:
     # Loop over depths:
-    # for depth in conf['depth_knots'][0:1]:
+    # sys.exit()
+    for depth in conf['depth_knots'][0:1]:
     
-    #     process_slice(conf, depth)
+        process_slice(conf, depth)
     
     # Loop over depths with multiprocessing:
-    depths = conf['depth_knots']  # list of slices to process
-    n_depths = len(depths)  # number of times to run process_slice
+    # depths = conf['depth_knots']  # list of slices to process
+    # n_depths = len(depths)  # number of times to run process_slice
     
-    t0 = time.time()
-    with multiprocessing.Pool() as pool:
-        for i in range(n_depths):
-            print("Processing depth "+str(depths[i]))
-            pool.apply_async(process_slice, args=(conf, depths[i]))
+    # with multiprocessing.Pool() as pool:
+    #     for i in range(n_depths):
+    #         print("Processing depth "+str(depths[i]))
+    #         pool.apply_async(process_slice, args=(conf, depths[i]))
         
-        # Wait for all processes to complete
-        pool.close()
-        pool.join()
+    #     # Wait for all processes to complete
+    #     pool.close()
+    #     pool.join()
 
     t1 = time.time()
     print("Generated the merged model in "+str(t1-t0)+" seconds")

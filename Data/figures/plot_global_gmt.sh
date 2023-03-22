@@ -1,13 +1,14 @@
 #!/bin/bash
 
 depth=0050
-input_file='../ascii/global_'$depth'.xyz'
-output_file='./gladm25_'$depth'km.ps'
-# range_global="-180/180/-90/90"
-range_global="0/360/-90/90"
+input_file='../ascii/semucb/global_50.xyz'
+output_file='./global_'$depth'km.ps'
+range_global="-180/180/-90/90"
+# range_global="0/360/-90/90"
 # range_plot="-R160/270/30/85"
-range_regional="-150/-100/20/50"
-frame_plot="W20c"
+# range_regional="-150/-100/20/50"
+# frame_plot="W20c"
+frame_plot="A110/25/15c"
 bor=90/45
 
 # cat<<EOF>$dir_home"mask.xyz"
