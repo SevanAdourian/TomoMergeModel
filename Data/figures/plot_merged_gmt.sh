@@ -62,7 +62,7 @@ F       87 0 0
 N       200
 EOF
 
-gmt makecpt -I -T-0.1/0.1/0.001 -D -Z -C"panoply_white.cpt" > "tomo.cpt"
+gmt makecpt -I -T-0.10/0.10/0.001 -D -Z -C"panoply_white.cpt" > "tomo.cpt"
 
 # gmt surface -R$range_global -H1 -I0.5 $input_file -Goutgrid.grd
 gmt surface -R$range_regional -I0.5 $input_file -Goutgrid.grd
