@@ -9,7 +9,83 @@ import xarray as xr
 import pdb
 import cartopy.crs as ccrs
 from Model1D import Model1D
+from scipy.interpolate import RectSphereBivariateSpline, RectBivariateSpline
 
+
+def interpolate_model(ds, target_lats, target_lons, target_depths):
+     # Create a new dataset for interpolated values
+     new_ds = xr.Dataset()
+     
+     # Decreasing latitude for increasing colatitudes
+     ds = ds.sortby('latitude', ascending=False)
+     
+     # Interpolate over depth using builtin interp function
+     tmp_ds = ds.interp(depth=target_depths, method='linear')
+     
+     # Get the latitudes, longitudes, and depths of the variable
+     lats = tmp_ds.coords['latitude'].values
+     lons = tmp_ds.coords['longitude'].values
+     depths = tmp_ds.coords['depth'].values
+     
+     # Convert to colatitude and radians
+     colats = np.pi/2 - np.deg2rad(lats)
+     lons = np.deg2rad(lons)
+     
+     target_colats = np.pi/2 - np.deg2rad(np.flipud(target_lats))
+     target_lons = np.deg2rad(target_lons)
+     
+     nlat = len(target_lats)
+     nlon = len(target_lons)
+     ndepths = len(target_depths)
+     
+     # Create mask to interpolate on, rest will be filled with NaNs
+     min_colat = np.min(colats)
+     max_colat = np.max(colats)
+     min_lon = np.min(lons)
+     max_lon = np.max(lons)
+     lat_mask = np.logical_and(target_colats >= min_colat, target_colats <= max_colat)
+     lon_mask = np.logical_and(target_lons >= min_lon, target_lons <= max_lon)
+     lat_indices, lon_indices = np.where(lat_mask)[0], np.where(lon_mask)[0]
+     
+     # Loop over each variable in the dataset
+     for varname in tmp_ds.data_vars:
+          # Interpolate the variable at the target latitudes and longitudes
+          # interpolated_data = np.zeros((nlat, nlon, ndepths))
+          # interpolated_data = np.empty((nlat, nlon, ndepths)).fill(np.nan)
+          interpolated_data = np.full([nlat, nlon, ndepths], np.nan)
+          
+          # Loop over depths
+          for i_d, depth in enumerate(tmp_ds.depth):
+               # Get the data array for the variable
+               var_data = tmp_ds[varname].isel(depth=i_d).values
+               
+               # Create an interpolation function for the variable at given depth
+               interp_func = RectSphereBivariateSpline(colats, lons, var_data)
+               
+               # Inteprolate on new grid for given depth
+               # interpolated_data[lat_mask,lon_mask,i_d] = interp_func(target_colats[lat_mask],\
+               #                                                        target_lons[lon_mask])
+               raw_interp = interp_func(target_colats[lat_mask],\
+                                        target_lons[lon_mask])
+               # breakpoint()
+               interpolated_slice = interpolated_data[:,:,i_d]
+               interpolated_slice[np.ix_(lat_indices, lon_indices)] = raw_interp
+               interpolated_data[:,:,i_d] = interpolated_slice
+                                                  
+
+               # breakpoint()
+          # Update the data array for the variable in the new dataset
+          new_ds[varname]= xr.DataArray(interpolated_data, \
+                                        coords=[('latitude', np.flipud(target_lats)), \
+                                                ('longitude', np.rad2deg(target_lons)), \
+                                                ('depth', target_depths)]) 
+          
+          new_ds = new_ds.sortby('latitude', ascending=True)
+          
+     return new_ds
+
+
+# sys.exit()
 # Reading the yaml file to 
 for conf_file in sys.argv[1:]:
     print('using configuration loaded from: %s' % (conf_file))
@@ -81,8 +157,8 @@ dlon_glo = global_model.longitude[1]-global_model.longitude[0]
 dlat_glo = global_model.latitude[1]-global_model.latitude[0]
 
 target_reg_increment = int(np.floor(360./max(dlon_reg,dlat_reg)))
-lon_reg = np.linspace(0.,360.,target_reg_increment)
-lat_reg = np.linspace(90.,-90.,target_reg_increment)
+lon_reg = np.linspace(-180,180.,target_reg_increment)
+lat_reg = np.linspace(-90.,90.,target_reg_increment)
 
 # print(lon_reg)
 # print(lat_reg)
@@ -97,8 +173,9 @@ spline_knots_reg = spline_knots[np.where(np.logical_and \
 spline_knots_reg_radius = regional_model.radius_in_meters/1000.0 - spline_knots_reg
 
 # Interpolate models on equally spaced grid and chosen depths
-regional_int = regional_model.interp(latitude=lat_reg, longitude=lon_reg, \
-                                     depth=spline_knots_reg, method='linear')
+# regional_int = regional_model.interp(latitude=lat_reg, longitude=lon_reg, \
+#                                      depth=spline_knots_reg, method='linear')
+regional_int = interpolate_model(regional_model, lat_reg, lon_reg, spline_knots_reg)
 # global_int   = global_model.interp(latitude=lat_glo, longitude = lon_glo, \
 #                                    depth=spline_knots, method='linear')
 global_int   = global_model.interp(depth=spline_knots, method='linear')
@@ -140,6 +217,7 @@ regional_int = regional_int.assign(vs0=(('latitude','longitude','depth'), vs0_re
 global_int = global_int.assign(vs0=(('depth','latitude','longitude'), vs0_glo))
 global_int = global_int.sortby('longitude')
 
+# regional_int.sel(depth=30).plot(cmap='plasma')
 # ax = plt.axes(projection=ccrs.EckertIII())
 # ax.set_global()
 # global_int.vsv.interp(depth=250,method='linear').plot(ax=ax, transform=ccrs.PlateCarree(), \
@@ -160,12 +238,12 @@ global_int = global_int.sortby('longitude')
 base_global_ascii_files = conf['path_to_ascii_files']+'/global_'
 base_reg_ascii_files    = conf['path_to_ascii_files']+'/regional_'
 
-for i,dep in enumerate(spline_knots):
-    global_ascii_filename   = base_global_ascii_files+str(format(int(dep),'04d'))+".xyz"
-    global_int.sel(depth=dep).to_dataframe().swaplevel(0).to_csv(global_ascii_filename, \
-                                                                 sep='\t', na_rep=0, \
-                                                                 float_format='%8.3f', \
-                                                                 columns=['vs0'],header=False)
+# for i,dep in enumerate(spline_knots):
+#     global_ascii_filename   = base_global_ascii_files+str(format(int(dep),'04d'))+".xyz"
+#     global_int.sel(depth=dep).to_dataframe().swaplevel(0).to_csv(global_ascii_filename, \
+#                                                                  sep='\t', na_rep=0, \
+#                                                                  float_format='%8.3f', \
+#                                                                  columns=['vs0'],header=False)
 
 for i,dep in enumerate(spline_knots_reg):
     regional_ascii_filename = base_reg_ascii_files+str(format(int(dep),'04d'))+".xyz"

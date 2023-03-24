@@ -2,9 +2,10 @@
 path_to_regional_model: './Data/netcdf/CANVAS_15-60s_400km.nc' # has to be netcdf
 path_to_global_model: './Data/netcdf/glad-m25-vs-0.0-n4.nc' # has to be netcdf
 # path_to_global_model: './Data/semucb-2014-ucb-vs.nc'
-path_to_ref_model: './Data/STW105.txt' # Reference 1D model
+# path_to_ref_model: './Data/STW105.txt' # Reference 1D model
+path_to_ref_model: './Data/Model1D.dat' # Reference 1D model
 depth_file: './Data/spline.par_26'
-max_depth_regional_model: 2891 # maximum depth in km of the regional model
+max_depth_regional_model: 400 # maximum depth in km of the regional model
 units_regional_depth: 'm'
 
 # Output files
@@ -12,16 +13,17 @@ path_to_ascii_files: './Data/ascii' # path to output of the ascii files for inte
 path_to_figures: './Data/figures'
 
 ## Parameters to create region
-reg_lwin: 89 # Lmax of regional model (in spherical harmonics)
-reg_nwin: 40 # Maximum number of windowing functions. higher = sharper
+reg_lwin: 179 # Lmax of regional model (in spherical harmonics)
+reg_nwin: 100 # Maximum number of windowing functions. higher = sharper
 
 # Coordinates of the region one wants to merge in a gloal model
-lon_min_mask: 80.0
-lon_max_mask: 160.0
-lat_min_mask: -5.0      # possible range: -90, 90 deg
-lat_max_mask: 45.0       # possible range: -90, 90 deg
+lon_min_mask: 235.0
+lon_max_mask: 253.0
+lat_min_mask: 31.5      # possible range: -90, 90 deg
+lat_max_mask: 43.0       # possible range: -90, 90 deg
 # Type of windowing
-win_type: spherical # spherical or rectangular
+win_type: rectangular # spherical or rectangular
+# win_type: rectangular # spherical or rectangular
 
 # For later, implement which parameter, name etc etc
 

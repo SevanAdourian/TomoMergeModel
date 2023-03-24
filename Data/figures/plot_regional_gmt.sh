@@ -3,11 +3,12 @@
 depth=$1
 input_file='../ascii/regional_'$depth'.xyz'
 output_file='./regional_'$depth'.ps'
-range_global="-R0/360/-90/90"
-# range_global="-R-180/180/-90/90"
+# range_global="-R0/360/-90/90"
+range_global="-R-180/180/-90/90"
 # range_plot="-R160/270/30/85"
-# range_regional="50/165/-10/60"
-frame_plot="A110/25/15c"
+range_regional="-150/-100/20/50"
+frame_plot="W20c"
+# frame_plot="A110/25/15c"
 bor=90/45
 
 cat<<EOF>$dir_home"mask.xyz"

@@ -6,9 +6,9 @@ output_file='./global_'$depth'km.ps'
 range_global="-180/180/-90/90"
 # range_global="0/360/-90/90"
 # range_plot="-R160/270/30/85"
-# range_regional="-150/-100/20/50"
-# frame_plot="W20c"
-frame_plot="A110/25/15c"
+range_regional="-150/-100/20/50"
+frame_plot="W20c"
+# frame_plot="A110/25/15c"
 bor=90/45
 
 # cat<<EOF>$dir_home"mask.xyz"
@@ -66,7 +66,7 @@ gmt makecpt -I -T-0.1/0.1/0.001 -D -Z -C"panoply_white.cpt" > "tomo.cpt"
 # gmt surface -R$range_global -H1 -I0.5 $input_file -Goutgrid.grd
 gmt surface -R$range_global -I0.5 $input_file -Goutgrid.grd
 
-gmt grdimage -R -J$frame_plot outgrid.grd -Bp20WSen:."depth ${depth} km": -C$dir_home"tomo.cpt" -Y5c -X3c -K > $output_file
+gmt grdimage -R$range_regional -J$frame_plot outgrid.grd -Bp20WSen:."depth ${depth} km": -C$dir_home"tomo.cpt" -Y5c -X3c -K > $output_file
 gmt pscoast -R -J -Dl -W0.03c,black -A5000 -O -K >> $output_file
 gmt psxy -R -J "./mask.xyz" -W0.03c,purple,-. -O -K >> $output_file
 gmt psscale -D10/-1c/5c/0.25ch -C"./tomo.cpt" -B0.1:"dlnVs (%)": -O >> $output_file

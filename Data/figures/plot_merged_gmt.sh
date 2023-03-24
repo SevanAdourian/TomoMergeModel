@@ -1,14 +1,15 @@
 #!/bin/bash
 
 depth=$1
-input_file='../ascii/merged_'$depth'.xyz'
-output_file='./merged_'$depth'km.ps'
+merge_type=$2
+input_file='../ascii/merged_'$depth'_'$merge_type'.xyz'
+output_file='./merged_'$merge_type'_'$depth'km.ps'
 # range_global="-180/180/-90/90"
 range_global="0/360/-90/90"
 # range_plot="-R160/270/30/85"
-# range_regional="-150/-100/20/50"
-# frame_plot="W20c"
-frame_plot="A110/25/15c"
+range_regional="210/260/20/50"
+frame_plot="W20c"
+# frame_plot="A110/25/15c"
 bor=90/45
 
 # cat<<EOF>$dir_home"mask.xyz"
@@ -64,7 +65,7 @@ EOF
 gmt makecpt -I -T-0.1/0.1/0.001 -D -Z -C"panoply_white.cpt" > "tomo.cpt"
 
 # gmt surface -R$range_global -H1 -I0.5 $input_file -Goutgrid.grd
-gmt surface -R$range_global -I0.5 $input_file -Goutgrid.grd
+gmt surface -R$range_regional -I0.5 $input_file -Goutgrid.grd
 
 gmt grdimage -R -J$frame_plot outgrid.grd -Bp20WSen:."depth ${depth} km": -C$dir_home"tomo.cpt" -Y5c -X3c -K > $output_file
 gmt pscoast -R -J -Dl -W0.03c,black -A5000 -O -K >> $output_file

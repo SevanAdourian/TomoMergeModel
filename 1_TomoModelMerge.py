@@ -110,7 +110,7 @@ def process_slice(conf, depth):
         zmesh_regional = reshape_field(regional_tomo)
         
         reg_grid, reg_clm = convert_to_spherical_harmonics(zmesh_regional, conf["reg_lwin"])
-        
+        # pdb.set_trace()
         # Doing mask windowing
         print("Creating spherical windowing", flush=True)
         reg_win_energy_grid = create_window(conf, regional_tomo, global_clm)
@@ -140,7 +140,8 @@ def write_model(conf, depth, grid):
     c_lonlatdv = np.column_stack((c_lonlat,c_dv))
 
     # ForkedPdb().set_trace()
-    model_out = conf['base_merged_ascii_files']+str(format(int(depth),'04d'))+".xyz"
+    model_out = conf['base_merged_ascii_files']+str(format(int(depth),'04d'))+\
+        '_'+conf['win_type']+".xyz"
     dataf = pd.DataFrame(data=c_lonlatdv, columns=('LON','LAT','DV') ) 
     dataf.to_csv(model_out, sep=' ', header=True, float_format='%.4f', index=False)
 
@@ -263,6 +264,7 @@ def create_window(conf, reg_field, global_clm):
 def apply_window(conf, global_grid, global_clm, reg_grid, reg_win_energy_grid, depth):
 
     # - Multiply grid by mask
+    # pdb.set_trace()
     reg_grid_masked=reg_grid*reg_win_energy_grid  
     reg_clm_masked=pyshtools.SHGrid.expand(reg_grid_masked)
     
@@ -271,6 +273,7 @@ def apply_window(conf, global_grid, global_clm, reg_grid, reg_win_energy_grid, d
                          conf['path_to_figures']+'/Regional_MaskedSpec_'+str(int(depth))+'km.png')    
     
     #   - Apply windows to global grid
+    # pdb.set_trace()
     global_grid_masked=global_grid*reg_win_energy_grid
     global_clm_masked=pyshtools.SHGrid.expand(global_grid_masked)
     
@@ -279,6 +282,7 @@ def apply_window(conf, global_grid, global_clm, reg_grid, reg_win_energy_grid, d
                          conf['path_to_figures']+'/Global_MaskedSpec_'+str(int(depth))+'km.png')
     
     # Sum regional and global spectra inside box
+    # pdb.set_trace()
     summed_clm_masked=reg_clm_masked+global_clm_masked
     summed_grid_masked=pyshtools.SHCoeffs.expand(summed_clm_masked)
 
@@ -286,6 +290,7 @@ def apply_window(conf, global_grid, global_clm, reg_grid, reg_win_energy_grid, d
                          conf['path_to_figures']+'/Summed_DoubleMaskedSpec_'+str(int(depth))+'km.png')
     
     # Sum regional spectrum inside box (masked) with global spectra outside box (unmasked)
+    # pdb.set_trace()
     summed_clm=reg_clm_masked+global_clm
     summed_grid=pyshtools.SHCoeffs.expand(summed_clm)
     
