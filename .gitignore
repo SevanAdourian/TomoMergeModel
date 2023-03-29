@@ -3,4 +3,4 @@
 **/Data/figures/*.pdf
 **/Data/ascii/*.xyz
 **/Data/ascii/*/*.xyz
-**/Data/netcdf/glad-m25-vs-0.0-n4.nc
+**/Data/netcdf/glad-m*-vs-0.0-n4.nc

@@ -46,13 +46,11 @@ class ForkedPdb(pdb.Pdb):
 def setup(conf):
     # Parameters
     depth_file = conf['depth_file'] 
-    reg_lwin = conf['reg_lwin'] #Lmax of regional model (in spherical harmonics)
-    reg_nwin = conf['reg_nwin'] #Maximum number of windowing functions. higher = sharper
     
     #  - Mask parameters
     # Part of the regional model that will be preserved in the merging.
     # Read in the depth file
-    conf['depth_knots_radius'] =  np.flipud(np.loadtxt(conf['depth_file'], skiprows=1))
+    conf['depth_knots_radius'] =  np.flipud(np.loadtxt(depth_file, skiprows=1))
     conf['depth_knots'] = conf['radius_in_meters']/1000.0 - conf['depth_knots_radius']
     
     conf['base_global_ascii_files'] = conf['path_to_ascii_files']+'/global_'
@@ -100,7 +98,7 @@ def process_slice(conf, depth):
     global_tomo = process_ascii_files(conf, path_to_global_ascii)
     zmesh_global = reshape_field(global_tomo)
 
-    global_grid, global_clm = convert_to_spherical_harmonics(zmesh_global, conf["reg_lwin"])
+    global_grid, global_clm = convert_to_spherical_harmonics(zmesh_global, conf["reg_lmax"])
     
     if depth < conf['max_depth_regional_model']:
         # Above where the regional model is defined in depth, actual merging
@@ -109,7 +107,7 @@ def process_slice(conf, depth):
         regional_tomo = process_ascii_files(conf, path_to_regional_ascii)
         zmesh_regional = reshape_field(regional_tomo)
         
-        reg_grid, reg_clm = convert_to_spherical_harmonics(zmesh_regional, conf["reg_lwin"])
+        reg_grid, reg_clm = convert_to_spherical_harmonics(zmesh_regional, conf["reg_lmax"])
         # pdb.set_trace()
         # Doing mask windowing
         print("Creating spherical windowing", flush=True)
@@ -179,14 +177,14 @@ def reshape_field(lon_lat_field):
     return zmesh
 
 
-def convert_to_spherical_harmonics(zmesh, reg_lwin):
+def convert_to_spherical_harmonics(zmesh, reg_lmax):
     #   - Convert to spherical harmonics with pySHtools
     grid = pyshtools.SHGrid.from_array(zmesh, grid= 'DH')
     clm = pyshtools.SHGrid.expand(grid)
-    clm = clm.pad(reg_lwin)  #Pad to match global clm
+    clm = clm.pad(reg_lmax)  #Pad to match global clm
 
     # Trim coefficients in SPH to match number used in regional model
-    grid = pyshtools.SHCoeffs.expand(clm,lmax=reg_lwin)
+    grid = pyshtools.SHCoeffs.expand(clm,lmax=reg_lmax)
 
     return grid, clm
 
@@ -204,6 +202,7 @@ def plot_map_and_spectra(conf, grid_object, clm_object, file_name):
     plt.close(fig)
 
     return
+
 
 def create_window(conf, reg_field, global_clm):
     '''
@@ -233,12 +232,12 @@ def create_window(conf, reg_field, global_clm):
     #-----------
     if conf['win_type'] == 'spherical': # spherical or rectangular'
         #   - Construct spherical harmonic window function from mask
-        reg_win=pyshtools.SHWindow.from_mask(reg_zmesh_mask,lwin=conf['reg_lwin'])
+        reg_win=pyshtools.SHWindow.from_mask(reg_zmesh_mask,lwin=conf['win_lmax'])
         reg_win_clm=pyshtools.SHWindow.to_shcoeffs(reg_win,0)
         reg_win_clm_pad=reg_win_clm.pad(global_clm.lmax)  #Pad to match global clm
         
         reg_win_energy = (reg_win.to_shgrid(0).to_array())**2
-        for i in range(1,conf['reg_nwin']):
+        for i in range(1,conf['win_eff_lmax']):
             reg_win_energy += (reg_win.to_shgrid(i).to_array())**2
             reg_win_energy_grid = pyshtools.SHGrid.from_array(reg_win_energy)
             
@@ -247,7 +246,7 @@ def create_window(conf, reg_field, global_clm):
         reg_win_energy_grid=reg_win_energy_grid/valmax
     
         reg_win_energy_clm = pyshtools.SHGrid.expand(reg_win_energy_grid)
-        reg_win_energy_clm=reg_win_energy_clm.pad(conf['reg_lwin'])  #Pad to match global clm
+        reg_win_energy_clm=reg_win_energy_clm.pad(conf['reg_lmax'])  #Pad to match global clm
         reg_win_energy_grid = pyshtools.SHCoeffs.expand(reg_win_energy_clm)  #Grid of mask
 
     elif conf['win_type'] == 'rectangular': # spherical or rectangular
