@@ -16,7 +16,7 @@ class Dataset():
     REGIONAL = 0
     GLOBAL = 1
     # constructors
-    def __init__(self, filePath: str, modelType: int, splineFilePath = None, globalModel = None):
+    def __init__(self, filePath: str, modelType: int, splineFilePath = None, globalModel = None, depthUnits = None):
 
         # Input validation for file path
         if filePath is None:
@@ -40,10 +40,10 @@ class Dataset():
         self.modelType = modelType
 
         self.dataset = xr.open_dataset(filePath)
+        self.convert_units(depthUnits) # need to figure out how to get units parameter
 
-        if self.modelType == Dataset.REGIONAL:
+        if self.modelType == Dataset.REGIONAL: # interpolating the regional model
             target_lats, target_lons, target_depths = self.getInterpolationParameters(globalModel, splineFilePath)
-
             self.dataset = Dataset.interpolate_model(self.dataset, target_lats, target_lons, target_depths)
 
     # Initialize a Dataset from the conf.yaml file
@@ -188,6 +188,15 @@ class Dataset():
           
      return new_ds
 
+    def convert_units(self, depthUnit = 'm'):
 
-    # dataset specific functions here
-    pass
+        if depthUnit == 'm':
+            self.dataset = self.dataset.assign_coords(depth=self.dataset.depth / 1000.0)
+        elif depthUnit != "km":
+            raise ValueError("Depth Units must be m or km")
+        
+        if 'VSV' in self.dataset:
+            self.dataset = self.dataset.assign(VSV_km=lambda x: self.dataset.VSV / 1000.0)
+        
+        if 'VSH' in self.dataset:
+            self.dataset = self.dataset.assign(VSH_km=lambda x: self.dataset.VSH / 1000.0) 
