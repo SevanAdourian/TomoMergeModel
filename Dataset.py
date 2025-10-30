@@ -42,7 +42,7 @@ class Dataset():
         self.dataset = xr.open_dataset(filePath)
 
         if self.modelType == Dataset.REGIONAL:
-            target_lats, target_lons, target_depths = getInterpolationParameters(globalModel, splineFilePath)
+            target_lats, target_lons, target_depths = self.getInterpolationParameters(globalModel, splineFilePath)
 
             self.dataset = Dataset.interpolate_model(self.dataset, target_lats, target_lons, target_depths)
 
@@ -66,6 +66,33 @@ class Dataset():
         if modelType == Dataset.GLOBAL:
             return Dataset(conf["path_to_global_model"], modelType)
 
+    def getInterpolationParameters(self, globalModel, splineFilePath):
+        # get spline knots from the spline file
+        spline_knots_radius =  np.flipud(np.loadtxt(splineFilePath, skiprows=1))
+        spline_knots = self.dataset.radius_in_meters/1000.0 - spline_knots_radius
+
+        # get target latitude and longitude
+        dlon_reg = self.dataset.longitude[1]-self.dataset.longitude[0]
+        dlat_reg = self.dataset.latitude[1]-self.dataset.latitude[0]
+
+        dlon_glo = globalModel.longitude[1]-globalModel.longitude[0]
+        dlat_glo = globalModel.latitude[1]-globalModel.latitude[0]
+
+        target_reg_increment = int(np.floor(360./max(dlon_reg,dlat_reg)))
+        lon_reg = np.linspace(-180,180.,target_reg_increment)
+        lat_reg = np.linspace(-90.,90.,target_reg_increment)
+
+        target_glo_increment = max(dlon_glo,dlat_glo)
+        lon_glo = np.arange(0.,360.+target_glo_increment,target_glo_increment)
+        lat_glo = np.arange(90.,-90.-target_glo_increment,-target_glo_increment)
+
+        # Get the relevant splines for the regional model
+        spline_knots_reg = spline_knots[np.where(np.logical_and \
+                                         (spline_knots > min(self.dataset.depth.to_numpy()), \
+                                          spline_knots < max(self.dataset.depth.to_numpy())))]
+        spline_knots_reg_radius = self.dataset.radius_in_meters/1000.0 - spline_knots_reg
+
+        return (lat_reg, lon_reg, spline_knots_reg)
 
     # getters and setters here
     def getFilePath(self) -> str:
