@@ -40,6 +40,7 @@ class Dataset():
         self.modelType = modelType
 
         self.dataset = xr.open_dataset(filePath)
+        self.convert_longitude()
         self.convert_units(depthUnits) # need to figure out how to get units parameter
 
         if self.modelType == Dataset.REGIONAL: # interpolating the regional model
@@ -200,3 +201,13 @@ class Dataset():
         
         if 'VSH' in self.dataset:
             self.dataset = self.dataset.assign(VSH_km=lambda x: self.dataset.VSH / 1000.0) 
+    
+    def convert_longitude(self):
+        lon_0_360 = []
+        for lon in self.dataset.longitude.to_numpy():
+            if lon < 0:
+                lon_r = lon+360.0
+            else:
+                lon_r = lon
+            lon_0_360.append(lon_r)
+        self.dataset = self.dataset.assign_coords(longitude=lon_0_360)
