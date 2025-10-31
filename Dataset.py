@@ -40,8 +40,9 @@ class Dataset():
         self.modelType = modelType
 
         self.dataset = xr.open_dataset(filePath)
-        self.convert_longitude()
+        self.assign_names()
         self.convert_units(depthUnits) # need to figure out how to get units parameter
+        self.convert_longitude()
 
         if self.modelType == Dataset.REGIONAL: # interpolating the regional model
             target_lats, target_lons, target_depths = self.getInterpolationParameters(globalModel, splineFilePath)
@@ -63,7 +64,7 @@ class Dataset():
             raise ValueError("conf.yaml not found or not in working directory")
         # return to the user, a Dataset instance depending on the model type and file path in conf.yaml
         if modelType == Dataset.REGIONAL:
-            return Dataset(conf["path_to_regional_model"], modelType)
+            return Dataset(conf["path_to_regional_model"], modelType, conf['depth_file'], conf['path_to_global_model'], conf['units_regional_depth'])
         if modelType == Dataset.GLOBAL:
             return Dataset(conf["path_to_global_model"], modelType)
 
@@ -211,3 +212,22 @@ class Dataset():
                 lon_r = lon
             lon_0_360.append(lon_r)
         self.dataset = self.dataset.assign_coords(longitude=lon_0_360)
+
+    def assign_names(self):
+        name_map = {
+            'latitude': ['lat', 'latitude', 'Latitude', 'LAT'],
+            'longitude': ['lon', 'longitude', 'Longitude', 'LON'],
+            'depth': ['depth', 'DEPTH', 'z', 'level'],
+            'value': ['value', 'data', 'values', 'model']
+        }
+
+        for key in name_map.keys():
+            found = False
+            for value in name_map[key]:
+                if value in self.dataset.variables:
+                    self.dataset = self.dataset.rename({value: key})
+                    found = True
+                    break
+            
+            if not found:
+                raise ValueError("Could not detect variable name for {key}")
