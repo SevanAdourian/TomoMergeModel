@@ -39,9 +39,10 @@ class Dataset():
         self.filePath = filePath
         self.modelType = modelType
 
+        # open the file, reassign variable names, homogenize units, and convert longitude values
         self.dataset = xr.open_dataset(filePath)
         self.assign_names()
-        self.convert_units(depthUnits) # need to figure out how to get units parameter
+        self.convert_units(depthUnits)
         self.convert_longitude()
 
         if self.modelType == Dataset.REGIONAL: # interpolating the regional model
@@ -230,4 +231,4 @@ class Dataset():
                     break
             
             if not found:
-                raise ValueError("Could not detect variable name for {key}")
+                raise ValueError(f"Could not detect variable name for {key}")
