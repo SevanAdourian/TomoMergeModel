@@ -16,7 +16,7 @@ class Dataset():
     REGIONAL = 0
     GLOBAL = 1
     # constructors
-    def __init__(self, filePath: str, modelType: int, splineFilePath = None, depthUnits = None):
+    def __init__(self, filePath: str, modelType: int, splineFilePath = None, depthUnits = None, reg_lmax = None, win_lmax = None, win_eff_lmax = None, max_depth = None):
 
         # Input validation for file path
         if filePath is None:
@@ -33,6 +33,8 @@ class Dataset():
         if modelType == Dataset.REGIONAL:
             if splineFilePath is not None and depthUnits is None:
                 raise ValueError("If spline file is given for interpolation, depth units must be given")
+            if any([x is None for x in [reg_lmax, win_lmax, win_eff_lmax, max_depth]]):
+                raise ValueError("Regional merging attributes must be given")
             
         
         # assign the file path and model type, and parse file for other attributes
@@ -46,6 +48,10 @@ class Dataset():
         self.convert_longitude()
 
         if self.modelType == Dataset.REGIONAL: # interpolating the regional model
+            self.reg_lmax = reg_lmax
+            self.win_lmax = win_lmax
+            self.win_eff_lmax = win_eff_lmax
+            self.max_depth = max_depth
             target_lats, target_lons, target_depths = self.getInterpolationParameters(splineFilePath)
             self.dataset = Dataset.interpolate_model(self.dataset, target_lats, target_lons, target_depths)
 
@@ -104,6 +110,9 @@ class Dataset():
         if not os.path.exists(path):
             raise ValueError("Incorrect file path: file could not be found")
         self.filePath = path
+
+    def getDataset(self):
+        return self.dataset
 
     def getModelType(self) -> int:
         return self.modelType
