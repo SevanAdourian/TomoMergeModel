@@ -16,7 +16,7 @@ class Dataset():
     REGIONAL = 0
     GLOBAL = 1
     # constructors
-    def __init__(self, filePath: str, modelType: int, splineFilePath = None, depthUnits = None):
+    def __init__(self, filePath: str, modelType: int, splineFilePath = None, depthUnits = None, xrDataset = None):
 
         # Input validation for file path
         if filePath is None:
