@@ -40,7 +40,12 @@ class Dataset():
         self.modelType = modelType
 
         # open the file, reassign variable names, homogenize units, and convert longitude values
-        self.dataset = xr.open_dataset(filePath)
+        if filePath == "":
+            if xrDataset is None:
+                raise ValueError("If empty filePath is given, xrDataset must be given")
+            self.dataset = xrDataset
+        else:
+            self.dataset = xr.open_dataset(filePath)
         self.assign_names()
         self.convert_units(depthUnits)
         self.convert_longitude()
@@ -241,3 +246,8 @@ class Dataset():
             
             if not found:
                 raise ValueError(f"Could not detect variable name for {key}")
+    
+    def save_model(self, filePath):
+        if filePath is None:
+            raise ValueError("File path to save model must be given")
+        self.dataset.to_netcdf(filePath)
