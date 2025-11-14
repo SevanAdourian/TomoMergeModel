@@ -48,11 +48,13 @@ class Dataset():
             self.dataset = xr.open_dataset(filePath)
         self.assign_names()
         self.convert_units(depthUnits)
-        self.convert_longitude()
+        # self.convert_longitude()
 
         if self.modelType == Dataset.REGIONAL: # interpolating the regional model
             target_lats, target_lons, target_depths = self.getInterpolationParameters(splineFilePath)
             self.dataset = Dataset.interpolate_model(self.dataset, target_lats, target_lons, target_depths)
+
+        self.convert_longitude()
 
     # Initialize a Dataset from the conf.yaml file
     @classmethod
@@ -122,6 +124,7 @@ class Dataset():
         self.modelType = mt
     
     def interpolate_slice(colats, lons, var_data, target_colats, lat_mask, target_lons, lon_mask, interpolated_data, i_d, lat_indices, lon_indices):
+        # pdb.set_trace()
         interp_func = RectSphereBivariateSpline(colats, lons, var_data)
                
         # Inteprolate on new grid for given depth
@@ -190,10 +193,10 @@ class Dataset():
                     var_data = tmp_ds[varname].isel(depth=i_d).values
                     
                     # Create an interpolation function for the variable at given depth
-                    interpolated_data[:,:,i_d] = Dataset.intepolate_slice(colats, lons, var_data, target_colats, lat_mask, target_lons, lon_mask, interpolated_data, i_d, lat_indices, lon_indices)
+                    interpolated_data[:,:,i_d] = Dataset.interpolate_slice(colats, lons, var_data, target_colats, lat_mask, target_lons, lon_mask, interpolated_data, i_d, lat_indices, lon_indices)
             else:
                 var_data = tmp_ds[varname].values
-                interpolated_data[:,:] = Dataset.intepolate_slice(colats, lons, var_data, target_colats, lat_mask, target_lons, lon_mask, interpolated_data, None, lat_indices, lon_indices)
+                interpolated_data[:,:] = Dataset.interpolate_slice(colats, lons, var_data, target_colats, lat_mask, target_lons, lon_mask, interpolated_data, None, lat_indices, lon_indices)
             
             # Update the data array for the variable in the new dataset
             new_ds[varname]= xr.DataArray(interpolated_data, \
@@ -233,7 +236,7 @@ class Dataset():
             'latitude': ['lat', 'latitude', 'Latitude', 'LAT'],
             'longitude': ['lon', 'longitude', 'Longitude', 'LON'],
             'depth': ['depth', 'DEPTH', 'z', 'level'],
-            'value': ['value', 'data', 'values', 'model']
+            # 'value': ['value', 'data', 'values', 'model']
         }
 
         for key in name_map.keys():

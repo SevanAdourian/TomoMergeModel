@@ -49,10 +49,10 @@ def test_badSplinePath_3():
 # bad depth units
 def test_badDepthUnits_1():
     with pytest.raises(ValueError):
-        temp = Dataset("Data\\netcdf\\semucb-2014-ucb-vs.nc", Dataset.REGIONAL, "./Data/netcdf/CANVAS_15-60s_400km.nc", '')
+        temp = Dataset("./Data/netcdf/semucb-2014-ucb-vs.nc", Dataset.REGIONAL, "./Data/netcdf/CANVAS_15-60s_400km.nc", depthUnits='m')
 
 # test instances to check that parsing was done correctly
-test_globalMod = Dataset("Data\\netcdf\\semucb-2014-ucb-vs.nc", Dataset.GLOBAL) # could not parse value name
-test_regionalMod = Dataset("./Data/netcdf/CANVAS_15-60s_400km.nc", Dataset.REGIONAL, "./Data/spline.par_26", 'm')
+test_globalMod = Dataset("./Data/netcdf/semucb-2014-ucb-vs.nc", Dataset.GLOBAL, depthUnits='m') # could not parse value name
+test_regionalMod = Dataset("./Data/netcdf/CANVAS_15-60s_400km.nc", Dataset.REGIONAL, "./Data/spline.par_26", depthUnits='m')
 
 test_globalMod.plot_all_variables()
