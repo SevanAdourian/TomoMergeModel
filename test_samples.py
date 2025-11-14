@@ -20,6 +20,10 @@ def test_badFilePath_3():
     with pytest.raises(ValueError):
         temp = Dataset("hello", Dataset.GLOBAL)
 
+def test_badFilePath_4():
+    with pytest.raises(ValueError):
+        temp = Dataset("", Dataset.GLOBAL)
+
 # bad model type for any Dataset
 def test_badModelType_1():
     with pytest.raises(ValueError):
@@ -32,7 +36,7 @@ def test_badModelType_2():
 # bad spline file path for regional datasets
 def test_badSplinePath_1():
     with pytest.raises(ValueError):
-        temp = Dataset("Data\\netcdf\\semucb-2014-ucb-vs.nc", Dataset.REGIONAL, 1)
+        temp = Dataset("Data\\netcdf\\semucb-2014-ucb-vs.nc", Dataset.REGIONAL, 1, 'm')
 
 def test_badSplinePath_2():
     with pytest.raises(ValueError):
@@ -40,5 +44,15 @@ def test_badSplinePath_2():
 
 def test_badSplinePath_3():
     with pytest.raises(ValueError):
-        temp = Dataset("Data\\netcdf\\semucb-2014-ucb-vs.nc", Dataset.REGIONAL, "hello")
+        temp = Dataset("Data\\netcdf\\semucb-2014-ucb-vs.nc", Dataset.REGIONAL, "hello", 'm')
 
+# bad depth units
+def test_badDepthUnits_1():
+    with pytest.raises(ValueError):
+        temp = Dataset("Data\\netcdf\\semucb-2014-ucb-vs.nc", Dataset.REGIONAL, "./Data/netcdf/CANVAS_15-60s_400km.nc", '')
+
+# test instances to check that parsing was done correctly
+test_globalMod = Dataset("Data\\netcdf\\semucb-2014-ucb-vs.nc", Dataset.GLOBAL) # could not parse value name
+test_regionalMod = Dataset("./Data/netcdf/CANVAS_15-60s_400km.nc", Dataset.REGIONAL, "./Data/spline.par_26", 'm')
+
+test_globalMod.plot_all_variables()

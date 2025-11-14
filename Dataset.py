@@ -251,3 +251,100 @@ class Dataset():
         if filePath is None:
             raise ValueError("File path to save model must be given")
         self.dataset.to_netcdf(filePath)
+    
+    def plot_variable(self, varname: str, depth=None, ax=None, cmap='viridis',
+                      vmin=None, vmax=None, title: str = None, show_colorbar=True,
+                      figsize=(10, 5)):
+        """
+        Plot one variable from the dataset on a PlateCarree map.
+        - varname: name of a data variable in the xr.Dataset
+        - depth: either an index (int) or a value (float) to pick nearest depth for 3D variables.
+                 If None and variable has a depth dimension, the first level is used.
+        Returns (fig, ax).
+        """
+        if varname not in self.dataset:
+            raise ValueError(f"{varname} not found in dataset")
+
+        da = self.dataset[varname]
+
+        # handle depth dimension if present
+        if 'depth' in da.dims:
+            if depth is None:
+                da_sel = da.isel(depth=0)
+                depth_label = str(da.depth.values[0])
+            elif isinstance(depth, (int, np.integer)):
+                da_sel = da.isel(depth=int(depth))
+                depth_label = str(da.depth.values[int(depth)])
+            else:
+                # assume numeric value -> find nearest depth
+                idx = int(np.argmin(np.abs(da.depth.values - float(depth))))
+                da_sel = da.isel(depth=idx)
+                depth_label = str(da.depth.values[idx])
+        else:
+            da_sel = da
+            depth_label = None
+
+        lats = da_sel['latitude'].values
+        lons = da_sel['longitude'].values
+        data = da_sel.values
+
+        # prepare figure / axis
+        created_fig = False
+        if ax is None:
+            fig, ax = plt.subplots(figsize=figsize, subplot_kw={'projection': ccrs.PlateCarree()})
+            created_fig = True
+        else:
+            fig = ax.figure
+
+        # pcolormesh expects 2D lon/lat grids or 1D coords with matching shapes
+        # Use transform to PlateCarree for proper georeferencing
+        pcm = ax.pcolormesh(lons, lats, data, transform=ccrs.PlateCarree(),
+                            cmap=cmap, vmin=vmin, vmax=vmax)
+        ax.coastlines()
+        try:
+            ax.set_global()
+        except Exception:
+            pass
+
+        if title is None:
+            title = varname
+            if depth_label is not None:
+                title = f"{title} (depth={depth_label})"
+        ax.set_title(title)
+
+        if show_colorbar:
+            cbar = fig.colorbar(pcm, ax=ax, orientation='vertical', pad=0.02, fraction=0.04)
+            cbar.set_label(varname)
+
+        if created_fig:
+            plt.show()
+
+        return fig, ax
+
+
+    def plot_all_variables(self, depth=None, save_dir: str = None, cmap='viridis',
+                           vmin=None, vmax=None, figsize=(10, 5), show=True):
+        """
+        Iterate through all data variables in the dataset and plot each.
+        - depth: forwarded to plot_variable for 3D variables
+        - save_dir: if provided, PNG files are written to this directory (created if needed)
+        - show: whether to call plt.show() after each plot (useful to turn off when saving many files)
+        Returns list of (varname, filepath_or_None).
+        """
+        results = []
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True)
+
+        for var in self.dataset.data_vars:
+            fig, ax = self.plot_variable(var, depth=depth, cmap=cmap, vmin=vmin, vmax=vmax, figsize=figsize, show_colorbar=True)
+            filepath = None
+            if save_dir is not None:
+                safe_name = var.replace('/', '_').replace(' ', '_')
+                filepath = os.path.join(save_dir, f"{safe_name}.png")
+                fig.savefig(filepath, bbox_inches='tight', dpi=150)
+            if show:
+                plt.show()
+            else:
+                plt.close(fig)
+            results.append((var, filepath))
+        return results
