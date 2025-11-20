@@ -44,14 +44,34 @@ class MergeMethods():
 
         try:
             self.conf = self.parseConfFile(confFilePath=confFilePath)
+        except ValueError as e:
+            raise ValueError(e)
         except:
             raise ValueError("Unable to parse config file")
+
+    def containsAllParams(self, conf):
+        params = ['path_to_regional_model', 
+                  'path_to_global_model',
+                  'depth_file',
+                  'max_depth_regional_model',
+                  'units_regional_depth',
+                  'reg_lmax',
+                  'win_lmax',
+                  'win_eff_lmax',
+                  'lon_min_mask',
+                  'lon_max_mask',
+                  'lat_min_mask',
+                  'lat_max_mask',
+                  'radius_in_meters']
+        for param in params:
+            if param not in conf:
+                raise ValueError(f"Param not found: {param}")
 
     def parseConfFile(self, confFilePath):
         with open(confFilePath) as f:
             conf = yaml.safe_load(f)
+        self.containsAllParams(conf)
         depth_file = conf['depth_file'] 
-    
         #  - Mask parameters
         # Part of the regional model that will be preserved in the merging.
         # Read in the depth file
