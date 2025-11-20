@@ -87,7 +87,7 @@ class Dataset():
 
 
         spline_knots_reg = None
-        if splineFilePath is not None:
+        if splineFilePath is not None and os.path.exists(splineFilePath):
             # get spline knots from the spline file
             spline_knots_radius =  np.flipud(np.loadtxt(splineFilePath, skiprows=1))
             spline_knots = self.dataset.radius_in_meters/1000.0 - spline_knots_radius
