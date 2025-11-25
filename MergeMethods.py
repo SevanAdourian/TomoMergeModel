@@ -267,12 +267,8 @@ class MergeMethods():
         n_depths = len(depths)  # number of times to run process_slice
         
         with multiprocessing.Pool() as pool:
-            results = [pool.apply_async(self.process_slice, args=(depth)) for depth in depths]
-            merged_arrays = [r.get() for r in results]
-            
-            # Wait for all processes to complete
-            pool.close()
-            pool.join()
+            # Use map to apply process_slice to each depth and collect results directly
+            merged_arrays = pool.map(self.process_slice, depths)
 
         self.merge_model = xr.concat(merged_arrays, dim="depth")
 

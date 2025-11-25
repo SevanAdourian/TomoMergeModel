@@ -22,3 +22,5 @@ dependencies:
     - ducc0>=0.15
     - flake8
     - conda-build
+    - pytest
+    - pyyaml
