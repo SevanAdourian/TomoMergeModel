@@ -210,14 +210,14 @@ class MergeMethods():
     
     def process_slice(self, depth):
     # Reading in global tomography model
-        zmesh_global = self.reshape_field(self.global_model.getDataset())
+        zmesh_global = self.reshape_field(self.global_model.getDataset(), depth)
 
         global_grid, global_clm = self.convert_to_spherical_harmonics(zmesh_global, self.conf["reg_lmax"])
         
         if depth < self.conf['max_depth_regional_model']:
             # Above where the regional model is defined in depth, actual merging
             # Reading in regional tomography model
-            zmesh_regional = self.reshape_field(self.regional_model.getDataset())
+            zmesh_regional = self.reshape_field(self.regional_model.getDataset(), depth)
             
             reg_grid, reg_clm = self.convert_to_spherical_harmonics(zmesh_regional, self.conf["reg_lmax"])
             # pdb.set_trace()
@@ -248,27 +248,27 @@ class MergeMethods():
 
         return da
 
-    def reshape_field(self, lon_lat_field):
-        #  - Create mesh of z
-        xvar = np.unique(lon_lat_field[:,0])
-        xlen = (len(xvar))
-        yvar = np.unique(lon_lat_field[:,1])
-        ylen = (len(yvar))
-        zmesh = (np.reshape(lon_lat_field[:,2],(ylen,xlen)))
+    def reshape_field(self, lon_lat_field, depth):
+        varname = list(lon_lat_field.data_vars)[0]
 
-        return zmesh
+        if depth in lon_lat_field.depth.values:
+            zmesh = lon_lat_field[varname].sel(depth=depth)
+        else:
+            zmesh = lon_lat_field[varname].isel(depth=depth)
+
+        xvar = lon_lat_field["longitude"].values
+        yvar = lon_lat_field["latitude"].values
+
+        zmesh = zmesh.values    # shape = (len(yvar), len(xvar))
+
+        return zmesh, xvar, yvar
 
     def merge(self):
-        # Initiate computing slices on multiple processes
-        multiprocessing.set_start_method('spawn')
-
-        # Loop over depths with multiprocessing:
-        depths = self.conf['depth_knots']  # get depth values from xarray dataset
-        n_depths = len(depths)  # number of times to run process_slice
-        
-        with multiprocessing.Pool() as pool:
-            # Use map to apply process_slice to each depth and collect results directly
-            merged_arrays = pool.map(self.process_slice, depths)
+        # Loop over depths serially (no multiprocessing)
+        depths = self.conf['depth_knots']
+        merged_arrays = []
+        for depth in depths:
+            merged_arrays.append(self.process_slice(depth))
 
         self.merge_model = xr.concat(merged_arrays, dim="depth")
 
