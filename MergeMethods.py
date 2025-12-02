@@ -8,6 +8,7 @@ import pyshtools
 import numpy as np
 import pandas as pd
 import xarray as xr
+import pdb
 
 class MergeMethods():
     # constructors
@@ -77,7 +78,6 @@ class MergeMethods():
         # Read in the depth file
         conf['depth_knots_radius'] =  np.flipud(np.loadtxt(depth_file, skiprows=1))
         conf['depth_knots'] = conf['radius_in_meters']/1000.0 - conf['depth_knots_radius']
-        
         conf['base_global_ascii_files'] = conf['path_to_ascii_files']+'/global_'
         conf['base_regional_ascii_files']    = conf['path_to_ascii_files']+'/regional_'
         conf['base_merged_ascii_files'] = conf['path_to_ascii_files']+'/merged_'
@@ -211,7 +211,8 @@ class MergeMethods():
     def process_slice(self, depth):
     # Reading in global tomography model
         zmesh_global = self.reshape_field(self.global_model.getDataset(), depth)
-
+        # zmesh_global = self.global_model.getDataset()[self.varname].sel(depth=depth)
+        
         global_grid, global_clm = self.convert_to_spherical_harmonics(zmesh_global, self.conf["reg_lmax"])
         
         if depth < self.conf['max_depth_regional_model']:
@@ -251,13 +252,12 @@ class MergeMethods():
     def reshape_field(self, lon_lat_field, depth):
         varname = list(lon_lat_field.data_vars)[0]
         zmesh = lon_lat_field[varname].sel(depth=float(depth))
+        # xvar = lon_lat_field["longitude"].values
+        # yvar = lon_lat_field["latitude"].values
 
-        xvar = lon_lat_field["longitude"].values
-        yvar = lon_lat_field["latitude"].values
+        # zmesh = zmesh.values    # shape = (len(yvar), len(xvar))
 
-        zmesh = zmesh.values    # shape = (len(yvar), len(xvar))
-
-        return zmesh, xvar, yvar
+        return zmesh.values# , xvar, yvar
 
     def merge(self):
         # Loop over depths serially (no multiprocessing)

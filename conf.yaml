@@ -1,7 +1,7 @@
 # Input files
 path_to_regional_model: './Data/netcdf/CANVAS_15-60s_400km.nc' # has to be netcdf
-# path_to_global_model: './Data/netcdf/glad-m15-vs-0.0-n4.nc' # has to be netcdf
-path_to_global_model: './Data/semucb-2014-ucb-vs.nc'
+path_to_global_model: './Data/netcdf/glad-m25-vs-0.0-n4.nc' # has to be netcdf
+# path_to_global_model: './Data/semucb-2014-ucb-vs.nc'
 # path_to_ref_model: './Data/STW105.txt' # Reference 1D model
 path_to_ref_model: './Data/Model1D.dat' # Reference 1D model
 depth_file: './Data/spline.par_26'

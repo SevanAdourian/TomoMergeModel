@@ -1,7 +1,9 @@
+import pdb
+
 from Dataset import Dataset
 from MergeMethods import MergeMethods
 regional_mod = Dataset("Data/netcdf/CANVAS_15-60s_400km.nc", Dataset.REGIONAL, "Data/spline.par_26", 'm')
-global_mod = Dataset("Data/netcdf/semucb-2014-ucb-vs.nc", Dataset.GLOBAL, depthUnits='m')
+global_mod = Dataset("Data/netcdf/glad-m25-vs-0.0-n4.nc", Dataset.GLOBAL, depthUnits='km')
 
 # print("Displaying Regional Maps")
 # regional_mod.plot_all_variables()
