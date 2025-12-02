@@ -250,11 +250,7 @@ class MergeMethods():
 
     def reshape_field(self, lon_lat_field, depth):
         varname = list(lon_lat_field.data_vars)[0]
-
-        if depth in lon_lat_field.depth.values:
-            zmesh = lon_lat_field[varname].sel(depth=depth)
-        else:
-            zmesh = lon_lat_field[varname].isel(depth=depth)
+        zmesh = lon_lat_field[varname].sel(depth=float(depth))
 
         xvar = lon_lat_field["longitude"].values
         yvar = lon_lat_field["latitude"].values
@@ -266,8 +262,10 @@ class MergeMethods():
     def merge(self):
         # Loop over depths serially (no multiprocessing)
         depths = self.conf['depth_knots']
+        print("depths - ", depths)
         merged_arrays = []
         for depth in depths:
+            print("depth - ", depth)
             merged_arrays.append(self.process_slice(depth))
 
         self.merge_model = xr.concat(merged_arrays, dim="depth")
