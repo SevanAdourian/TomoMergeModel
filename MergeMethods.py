@@ -138,10 +138,10 @@ class MergeMethods():
         '''
         
         #-----------
-        xvar = np.unique(reg_field[:,0])
-        xlen = (len(xvar))
-        yvar = np.unique(reg_field[:,1])
-        ylen = (len(yvar))
+        xvar = (list(reg_field._coord_names))[0]
+        xlen = (len(reg_field[xvar]))
+        yvar = (list(reg_field._coord_names))[1]
+        ylen = (len(reg_field[yvar]))
 
         lon_left=self.conf['lon_min_mask']
         lon_right=self.conf['lon_max_mask']
@@ -149,11 +149,11 @@ class MergeMethods():
         lat_top    =  self.conf['lat_max_mask'] # possible range: -90, 90 deg
 
         #  - Regional mask - set 1s inside region and 0s outside
-        reg_zmask= np.where( ( (reg_field[:,0] >= lon_left) & (reg_field[:,0] <= lon_right) )&\
-                            ( (reg_field[:,1] >= lat_bottom) & (reg_field[:,1] <= lat_top) ),1,0)
+        reg_zmask= np.where( ( (reg_field[xvar] >= lon_left) & (reg_field[xvar] <= lon_right) )&\
+                            ( (reg_field[yvar] >= lat_bottom) & (reg_field[yvar] <= lat_top) ),1,0)
         # 
         reg_zmesh_mask=(np.reshape(reg_zmask,(ylen,xlen)))
-        reg_mask_xyz=np.column_stack((reg_field[:,0],reg_field[:,1],reg_zmask))
+        # reg_mask_xyz=np.column_stack((reg_field[:,0],reg_field[:,1],reg_zmask))
         
         #-----------
         if self.conf['win_type'] == 'spherical': # spherical or rectangular'
@@ -252,12 +252,8 @@ class MergeMethods():
     def reshape_field(self, lon_lat_field, depth):
         varname = list(lon_lat_field.data_vars)[0]
         zmesh = lon_lat_field[varname].sel(depth=float(depth))
-        # xvar = lon_lat_field["longitude"].values
-        # yvar = lon_lat_field["latitude"].values
 
-        # zmesh = zmesh.values    # shape = (len(yvar), len(xvar))
-
-        return zmesh.values# , xvar, yvar
+        return zmesh.values
 
     def merge(self):
         # Loop over depths serially (no multiprocessing)
