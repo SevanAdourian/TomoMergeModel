@@ -138,9 +138,9 @@ class MergeMethods():
         '''
         
         #-----------
-        xvar = (list(reg_field._coord_names))[0]
+        xvar = 'longitude'
         xlen = (len(reg_field[xvar]))
-        yvar = (list(reg_field._coord_names))[1]
+        yvar = 'latitude'
         ylen = (len(reg_field[yvar]))
 
         lon_left=self.conf['lon_min_mask']
@@ -158,6 +158,7 @@ class MergeMethods():
         #-----------
         if self.conf['win_type'] == 'spherical': # spherical or rectangular'
             #   - Construct spherical harmonic window function from mask
+            # pdb.set_trace()
             reg_win=pyshtools.SHWindow.from_mask(reg_zmesh_mask,lwin=self.conf['win_lmax'])
             reg_win_clm=pyshtools.SHWindow.to_shcoeffs(reg_win,0)
             reg_win_clm_pad=reg_win_clm.pad(global_clm.lmax)  #Pad to match global clm
@@ -240,10 +241,13 @@ class MergeMethods():
         lats = grid.lats()
         lons = grid.lons()
 
+        # Adding a 3rd dimension 
+        m_dv = np.expand_dims(m_dv, axis=-1)
+        # pdb.set_trace()
         da = xr.DataArray(
             data=m_dv,
-            dims=("lat", "lon"),
-            coords={"lat": lats, "lon": lons, "depth": [depth]},
+            dims=("latitude", "longitude", "depth"),
+            coords={"latitude": lats, "longitude": lons, "depth": [depth]},
             name="dv"
         )
 
@@ -258,7 +262,7 @@ class MergeMethods():
     def merge(self):
         # Loop over depths serially (no multiprocessing)
         depths = self.conf['depth_knots']
-        print("depths - ", depths)
+        # print("depths - ", depths)
         merged_arrays = []
         for depth in depths:
             print("depth - ", depth)
@@ -266,6 +270,7 @@ class MergeMethods():
 
         self.merge_model = xr.concat(merged_arrays, dim="depth")
 
+        # Needed for multiprocessing
         self.merge_model = self.merge_model.sortby("depth")
 
         self.merge_model = Dataset("", Dataset.GLOBAL, xrDataset=self.merge_model)
