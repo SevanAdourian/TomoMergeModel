@@ -4,7 +4,7 @@ path_to_global_model: './Data/netcdf/glad-m25-vs-0.0-n4.nc' # has to be netcdf
 # path_to_global_model: './Data/semucb-2014-ucb-vs.nc'
 # path_to_ref_model: './Data/STW105.txt' # Reference 1D model
 path_to_ref_model: './Data/Model1D.dat' # Reference 1D model
-depth_file: './Data/spline.par_26'
+depth_file: './Data/spline.par'
 max_depth_regional_model: 400 # maximum depth in km of the regional model
 units_regional_depth: 'm'
 

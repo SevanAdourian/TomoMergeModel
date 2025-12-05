@@ -268,11 +268,13 @@ class MergeMethods():
             print("depth - ", depth)
             merged_arrays.append(self.process_slice(depth))
 
-        self.merge_model = xr.concat(merged_arrays, dim="depth")
+        # Actually concatneation returns a DataArray, not a DataSet
+        merged_all_arrays = xr.concat(merged_arrays, dim="depth")
+        self.merge_model = merged_all_arrays.to_dataset(name="merged")
 
         # Needed for multiprocessing
         self.merge_model = self.merge_model.sortby("depth")
-
-        self.merge_model = Dataset("", Dataset.GLOBAL, xrDataset=self.merge_model)
+        pdb.set_trace()
+        self.merge_model = Dataset("", Dataset.GLOBAL, xrDataset=self.merge_model, depthUnits='km')
 
         return self.merge_model

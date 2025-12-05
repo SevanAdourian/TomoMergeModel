@@ -23,8 +23,18 @@ class Dataset():
             raise ValueError("Need to pass in file path")
         if type(filePath) is not str:
             raise ValueError("File path must be a string")
-        if not os.path.exists(filePath):
-            raise ValueError("Incorrect file path: file could not be found")
+
+        if xrDataset is not None:
+            # For non-empty paths, ensure the directory exists
+            if filePath != "":
+                directory = os.path.dirname(filePath)
+                if directory not in ["", ".", None] and not os.path.isdir(directory):
+                    raise ValueError(f"Directory does not exist for output file: {directory}")
+
+        else:
+            # if xrDataset is None file must exist
+            if not os.path.exists(filePath):
+                raise ValueError("Incorrect file path: file could not be found")
         
         # Input validation for model type
         if modelType not in [Dataset.REGIONAL, Dataset.GLOBAL]:
