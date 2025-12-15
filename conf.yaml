@@ -14,8 +14,8 @@ path_to_figures: './Data/figures'
 
 ## Parameters to create region
 reg_lmax: 50 # Lmax of regional model (in spherical harmonics)
-win_lmax: 40 # Maximum degree of expansion for windowing functions.
-win_eff_lmax: 22  # Maximum effective degree for the windowing. 
+win_lmax: 20 # Maximum degree of expansion for windowing functions.
+win_eff_lmax: 20  # Maximum effective degree for the windowing. 
 # When win_eff_lmax is close win_lmax means, there is no further smoothing.
 # win_lmax should not be too high otherwise it requires too much memory and the code crashes.
 # The max value for win_lmax should be around ~180. win_eff_lmax can be varied to choose the smoothness.

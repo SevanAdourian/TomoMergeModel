@@ -215,7 +215,7 @@ class Dataset():
                                                     ('depth', target_depths)]) 
             
             new_ds = new_ds.sortby('latitude', ascending=True)
-            
+
         return new_ds
 
     def convert_units(self, depthUnit = 'm'):
