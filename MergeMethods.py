@@ -121,6 +121,8 @@ class MergeMethods():
     # merge function and helper functions here
     def convert_to_spherical_harmonics(self, zmesh, reg_lmax):
         #   - Convert to spherical harmonics with pySHtools
+        mask = np.isfinite(zmesh)
+        zmesh = np.where(mask, zmesh, 0,0)
         grid = pyshtools.SHGrid.from_array(zmesh, grid= 'DH')
         clm = pyshtools.SHGrid.expand(grid)
         clm = clm.pad(reg_lmax)  #Pad to match global clm
