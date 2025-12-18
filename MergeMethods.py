@@ -50,6 +50,7 @@ class MergeMethods():
         except:
             raise ValueError("Unable to parse config file")
 
+        pdb.set_trace()
     def containsAllParams(self, conf):
         params = ['path_to_regional_model', 
                   'path_to_global_model',
@@ -208,7 +209,7 @@ class MergeMethods():
         # pdb.set_trace()
         summed_clm=reg_clm_masked+global_clm
         summed_grid=pyshtools.SHCoeffs.expand(summed_clm)
-
+        pdb.set_trace()
         return summed_grid
     
     def process_slice(self, depth):
@@ -232,7 +233,8 @@ class MergeMethods():
         else:
             # Below where the regional model is defined, we just write the global model
             summed_grid = global_grid
-        
+
+        pdb.set_trace()
         return self.write_model(depth=depth, grid=summed_grid)
     
     def write_model(self, depth, grid):
@@ -276,7 +278,7 @@ class MergeMethods():
 
         # Needed for multiprocessing
         self.merge_model = self.merge_model.sortby("depth")
-        pdb.set_trace()
         self.merge_model = Dataset("", Dataset.GLOBAL, xrDataset=self.merge_model, depthUnits='km')
+        pdb.set_trace()
 
         return self.merge_model
