@@ -88,13 +88,16 @@ class Dataset():
 
     def getInterpolationParameters(self, splineFilePath):
         # get target latitude and longitude
-        dlon_reg = self.dataset.longitude[1]-self.dataset.longitude[0]
-        dlat_reg = self.dataset.latitude[1]-self.dataset.latitude[0]
-
-        target_reg_increment = int(np.floor(360./max(dlon_reg,dlat_reg)))
-        lon_reg = np.linspace(-180,180.,target_reg_increment)
-        lat_reg = np.linspace(-90.,90.,target_reg_increment)
-
+        # dlon_reg = self.dataset.longitude[1]-self.dataset.longitude[0]
+        # dlat_reg = self.dataset.latitude[1]-self.dataset.latitude[0]
+        # dlat_reg = 0.5
+        # dlon_reg = 0.5
+        
+        # target_reg_increment = int(np.floor(360./max(dlon_reg,dlat_reg)))
+        # lon_reg = np.linspace(-180,180.,target_reg_increment)
+        # lat_reg = np.linspace(-90.,90.,target_reg_increment)
+        lon_reg = np.linspace(-180,180.,721)
+        lat_reg = np.linspace(-90.,90.,361)
 
         spline_knots_reg = None
         if splineFilePath is not None and os.path.exists(splineFilePath):
@@ -204,9 +207,15 @@ class Dataset():
                     
                     # Create an interpolation function for the variable at given depth
                     interpolated_data[:,:,i_d] = Dataset.interpolate_slice(colats, lons, var_data, target_colats, lat_mask, target_lons, lon_mask, interpolated_data, i_d, lat_indices, lon_indices)
+
+                    #### DEBUG
+                    # pdb.set_trace()
             else:
                 var_data = tmp_ds[varname].values
                 interpolated_data[:,:] = Dataset.interpolate_slice(colats, lons, var_data, target_colats, lat_mask, target_lons, lon_mask, interpolated_data, None, lat_indices, lon_indices)
+
+                #### DEBUG
+                # pdb.set_trace()
             
             # Update the data array for the variable in the new dataset
             new_ds[varname]= xr.DataArray(interpolated_data, \

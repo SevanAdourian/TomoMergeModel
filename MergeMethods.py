@@ -50,7 +50,6 @@ class MergeMethods():
         except:
             raise ValueError("Unable to parse config file")
 
-        pdb.set_trace()
     def containsAllParams(self, conf):
         params = ['path_to_regional_model', 
                   'path_to_global_model',
@@ -122,8 +121,8 @@ class MergeMethods():
     # merge function and helper functions here
     def convert_to_spherical_harmonics(self, zmesh, reg_lmax):
         #   - Convert to spherical harmonics with pySHtools
-        mask = np.isfinite(zmesh)
-        zmesh = np.where(mask, zmesh, 0,0)
+        mask = np.isnan(zmesh)
+        zmesh[mask] = 0.0
         grid = pyshtools.SHGrid.from_array(zmesh, grid= 'DH')
         clm = pyshtools.SHGrid.expand(grid)
         clm = clm.pad(reg_lmax)  #Pad to match global clm
@@ -214,7 +213,7 @@ class MergeMethods():
     
     def process_slice(self, depth):
     # Reading in global tomography model
-        zmesh_global = self.reshape_field(self.global_model.getDataset(), depth)
+        zmesh_global = self.reshape_field(self.global_model.getDataset(), depth, 'glo')
         # zmesh_global = self.global_model.getDataset()[self.varname].sel(depth=depth)
         
         global_grid, global_clm = self.convert_to_spherical_harmonics(zmesh_global, self.conf["reg_lmax"])
@@ -222,7 +221,9 @@ class MergeMethods():
         if depth < self.conf['max_depth_regional_model']:
             # Above where the regional model is defined in depth, actual merging
             # Reading in regional tomography model
-            zmesh_regional = self.reshape_field(self.regional_model.getDataset(), depth)
+            zmesh_regional = self.reshape_field(self.regional_model.getDataset(), depth, 'reg')
+
+            pdb.set_trace()
             
             reg_grid, reg_clm = self.convert_to_spherical_harmonics(zmesh_regional, self.conf["reg_lmax"])
             # pdb.set_trace()
@@ -257,9 +258,15 @@ class MergeMethods():
 
         return da
 
-    def reshape_field(self, lon_lat_field, depth):
+    def reshape_field(self, lon_lat_field, depth, modelType):
         varname = list(lon_lat_field.data_vars)[0]
-        zmesh = lon_lat_field[varname].sel(depth=float(depth))
+        # zmesh = lon_lat_field[varname].sel(depth=float(depth))
+        
+        ### DEBUG ###
+        if modelType == 'reg':
+            zmesh = lon_lat_field[varname].sel(depth=float(depth)) / 1.e3
+        else:
+            zmesh = lon_lat_field[varname].sel(depth=float(depth))
 
         return zmesh.values
 
