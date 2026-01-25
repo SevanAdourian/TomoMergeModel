@@ -160,7 +160,7 @@ class MergeMethods():
         #-----------
         if self.conf['win_type'] == 'spherical': # spherical or rectangular'
             #   - Construct spherical harmonic window function from mask
-            # pdb.set_trace()
+
             reg_win=pyshtools.SHWindow.from_mask(reg_zmesh_mask,lwin=self.conf['win_lmax'])
             reg_win_clm=pyshtools.SHWindow.to_shcoeffs(reg_win,0)
             reg_win_clm_pad=reg_win_clm.pad(global_clm.lmax)  #Pad to match global clm
@@ -191,29 +191,24 @@ class MergeMethods():
     def apply_window(self, global_grid, global_clm, reg_grid, reg_win_energy_grid):
 
         # - Multiply grid by mask
-        # pdb.set_trace()
         reg_grid_masked=reg_grid*reg_win_energy_grid  
         reg_clm_masked=pyshtools.SHGrid.expand(reg_grid_masked)
         
         #   - Apply windows to global grid
-        # pdb.set_trace()
         global_grid_masked=global_grid*reg_win_energy_grid
         global_clm_masked=pyshtools.SHGrid.expand(global_grid_masked)
         
         # Sum regional and global spectra inside box
-        # pdb.set_trace()
         summed_clm_masked=reg_clm_masked+global_clm_masked
 
         # Sum regional spectrum inside box (masked) with global spectra outside box (unmasked)
-        # pdb.set_trace()
         summed_clm=reg_clm_masked+global_clm
         summed_grid=pyshtools.SHCoeffs.expand(summed_clm)
-        pdb.set_trace()
         return summed_grid
     
     def process_slice(self, depth):
     # Reading in global tomography model
-        zmesh_global = self.reshape_field(self.global_model.getDataset(), depth, 'glo')
+        zmesh_global = self.reshape_field(self.global_model.getDataset(), depth)
         # zmesh_global = self.global_model.getDataset()[self.varname].sel(depth=depth)
         
         global_grid, global_clm = self.convert_to_spherical_harmonics(zmesh_global, self.conf["reg_lmax"])
@@ -221,21 +216,17 @@ class MergeMethods():
         if depth < self.conf['max_depth_regional_model']:
             # Above where the regional model is defined in depth, actual merging
             # Reading in regional tomography model
-            zmesh_regional = self.reshape_field(self.regional_model.getDataset(), depth, 'reg')
+            zmesh_regional = self.reshape_field(self.regional_model.getDataset(), depth)
 
-            pdb.set_trace()
             
             reg_grid, reg_clm = self.convert_to_spherical_harmonics(zmesh_regional, self.conf["reg_lmax"])
-            # pdb.set_trace()
             # Doing mask windowing
             reg_win_energy_grid = self.create_window(self.regional_model.getDataset(), global_clm)
             summed_grid = self.apply_window(global_grid, global_clm, reg_grid, reg_win_energy_grid)
-            # ForkedPdb().set_trace()
         else:
             # Below where the regional model is defined, we just write the global model
             summed_grid = global_grid
 
-        pdb.set_trace()
         return self.write_model(depth=depth, grid=summed_grid)
     
     def write_model(self, depth, grid):
@@ -248,7 +239,6 @@ class MergeMethods():
 
         # Adding a 3rd dimension 
         m_dv = np.expand_dims(m_dv, axis=-1)
-        # pdb.set_trace()
         da = xr.DataArray(
             data=m_dv,
             dims=("latitude", "longitude", "depth"),
@@ -260,13 +250,7 @@ class MergeMethods():
 
     def reshape_field(self, lon_lat_field, depth, modelType):
         varname = list(lon_lat_field.data_vars)[0]
-        # zmesh = lon_lat_field[varname].sel(depth=float(depth))
-        
-        ### DEBUG ###
-        if modelType == 'reg':
-            zmesh = lon_lat_field[varname].sel(depth=float(depth)) / 1.e3
-        else:
-            zmesh = lon_lat_field[varname].sel(depth=float(depth))
+        zmesh = lon_lat_field[varname].sel(depth=float(depth))
 
         return zmesh.values
 
@@ -286,6 +270,5 @@ class MergeMethods():
         # Needed for multiprocessing
         self.merge_model = self.merge_model.sortby("depth")
         self.merge_model = Dataset("", Dataset.GLOBAL, xrDataset=self.merge_model, depthUnits='km')
-        pdb.set_trace()
 
         return self.merge_model
