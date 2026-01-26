@@ -248,7 +248,7 @@ class MergeMethods():
 
         return da
 
-    def reshape_field(self, lon_lat_field, depth, modelType):
+    def reshape_field(self, lon_lat_field, depth):
         varname = list(lon_lat_field.data_vars)[0]
         zmesh = lon_lat_field[varname].sel(depth=float(depth))
 
