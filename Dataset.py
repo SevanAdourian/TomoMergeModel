@@ -290,8 +290,6 @@ class Dataset():
             da_sel = da
             depth_label = None
 
-        da_sel = da_sel.sortby('latitude')
-        da_sel = da_sel.assign_coords(longitude=((da_sel.longitude + 180) % 360)).sortby('longitude')
         lats = da_sel['latitude'].values
         lons = da_sel['longitude'].values
         data = da_sel.values
@@ -306,7 +304,7 @@ class Dataset():
 
         # pcolormesh expects 2D lon/lat grids or 1D coords with matching shapes
         # Use transform to PlateCarree for proper georeferencing
-        pcm = ax.pcolormesh(lons, lats[::-1], data, transform=ccrs.PlateCarree(),
+        pcm = ax.pcolormesh(lons, lats, data, transform=ccrs.PlateCarree(),
                             cmap=cmap, vmin=vmin, vmax=vmax)
         ax.coastlines()
         try:

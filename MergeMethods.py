@@ -269,6 +269,8 @@ class MergeMethods():
 
         # Needed for multiprocessing
         self.merge_model = self.merge_model.sortby("depth")
+        self.merge_model = self.merge_model.assign_coords(latitude=self.merge_model.latitude[::-1]).sortby("latitude")
+        self.merge_model = self.merge_model.assign_coords(longitude=((self.merge_model.longitude + 180) % 360)).sortby("latitude")
         self.merge_model = Dataset("", Dataset.GLOBAL, xrDataset=self.merge_model, depthUnits='km')
 
         return self.merge_model
