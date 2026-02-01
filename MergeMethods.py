@@ -258,10 +258,18 @@ class MergeMethods():
         # Loop over depths serially (no multiprocessing)
         depths = self.conf['depth_knots']
         # print("depths - ", depths)
-        merged_arrays = []
-        for depth in depths:
-            print("depth - ", depth)
-            merged_arrays.append(self.process_slice(depth))
+        results = []
+        with multiprocessing.Pool() as pool:
+            for depth in depths:
+                print("depth - ", depth)
+                results.append(
+                    pool.apply_async(self.process_slice, args=(depth,))
+                )
+            
+            pool.close()
+            pool.join()
+        
+        merged_arrays = [r.get() for r in results]
 
         # Actually concatneation returns a DataArray, not a DataSet
         merged_all_arrays = xr.concat(merged_arrays, dim="depth")
