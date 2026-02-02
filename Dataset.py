@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # imports here
 import os, yaml
 import numpy as np
@@ -13,49 +15,51 @@ from Model1D import Model1D
 from scipy.interpolate import RectSphereBivariateSpline, RectBivariateSpline
 
 class Dataset():
-    REGIONAL = 0
-    GLOBAL = 1
+    REGIONAL = 0 # Regional Dataset object
+    GLOBAL = 1 # Global Dataset object
     # constructors
-    def __init__(self, filePath: str, modelType: int, splineFilePath = None, depthUnits = None, xrDataset = None, globalModel = None):
+    def __init__(self, filePath: str, modelType: int, splineFilePath: str = None, depthUnits: str = None, xrDataset: xr.Dataset = None, globalModel: Dataset = None):
 
         # Input validation for file path
         if filePath is None:
             raise ValueError("Need to pass in file path")
-        if type(filePath) is not str:
-            raise ValueError("File path must be a string")
         
         # Input validation for model type
         if modelType not in [Dataset.REGIONAL, Dataset.GLOBAL]:
             raise ValueError("Model type must be Dataset.REGIONAL or Dataset.GLOBAL")
         
+        # If model is regional, and a spline file and global model are given, depth units are needed
         if modelType == Dataset.REGIONAL:
             if splineFilePath is not None and globalModel is not None and depthUnits is None:
                 raise ValueError("If interpolation on depths is needed, depth units must be given")
             
         
         # assign the file path and model type, and parse file for other attributes
-        self.filePath = filePath
-        self.modelType = modelType
+        self.filePath: str = filePath
+        self.modelType: int = modelType
 
         # open the file, reassign variable names, homogenize units, and convert longitude values
         if filePath == "":
             if xrDataset is None:
                 raise ValueError("If empty filePath is given, xrDataset must be given")
-            self.dataset = xrDataset
+            self.dataset: xr.Dataset = xrDataset
         else:
-            self.dataset = xr.open_dataset(filePath)
+            self.dataset: xr.Dataset = xr.open_dataset(filePath)
+        
+        # assign names to varialbes and convert the units
         self.assign_names()
         self.convert_units(depthUnits)
 
         if self.modelType == Dataset.REGIONAL: # interpolating the regional model
             target_lats, target_lons, target_depths = self.getInterpolationParameters(splineFilePath, globalModel=globalModel)
-            self.dataset = Dataset.interpolate_model(self.dataset, target_lats, target_lons, target_depths)
+            self.dataset: xr.Dataset = Dataset.interpolate_model(self.dataset, target_lats, target_lons, target_depths)
 
+        # convert the longitude
         self.convert_longitude()
 
     # Initialize a Dataset from the conf.yaml file
     @classmethod
-    def initFromConf(modelType: int, globalModel = None):
+    def initFromConf(modelType: int, globalModel: Dataset = None) -> Dataset:
 
         # Input validation for model type
         if modelType not in [Dataset.REGIONAL, Dataset.GLOBAL]:
@@ -69,29 +73,32 @@ class Dataset():
             raise ValueError("conf.yaml not found or not in working directory")
         # return to the user, a Dataset instance depending on the model type and file path in conf.yaml
         if modelType == Dataset.REGIONAL:
-            return Dataset(conf["path_to_regional_model"], modelType, conf['depth_file'], conf['path_to_global_model'], conf['units_regional_depth'], globalModel=globalModel)
+            return Dataset(conf["path_to_regional_model"], modelType, conf['depth_file'], None, conf['path_to_global_model'], conf['units_regional_depth'], globalModel=globalModel)
         if modelType == Dataset.GLOBAL:
             return Dataset(conf["path_to_global_model"], modelType)
 
-    def getInterpolationParameters(self, splineFilePath, globalModel):
+    # get the interpolation parameters based on the regional and global model
+    def getInterpolationParameters(self, splineFilePath: str, globalModel: Dataset) -> tuple:
         # get target latitude and longitude
-        glo = globalModel.getDataset()
-        dlon_reg = glo.longitude[1] - glo.longitude[0]
-        dlat_reg = glo.latitude[1] - glo.latitude[0]
+        glo: xr.Dataset = globalModel.getDataset()
+        dlon_reg: xr.DataArray = glo.longitude[1] - glo.longitude[0]
+        dlat_reg: xr.DataArray = glo.latitude[1] - glo.latitude[0]
         
-        target_reg_increment = int(np.floor(360./max(dlon_reg,dlat_reg)))
-        lon_reg = np.linspace(-180,180.,target_reg_increment)
-        lat_reg = np.linspace(-90.,90.,target_reg_increment)
+        # get the regional increment
+        target_reg_increment: int = int(np.floor(360./max(dlon_reg,dlat_reg)))
+        lon_reg: np.ndarray = np.linspace(-180,180.,target_reg_increment)
+        lat_reg: np.ndarray = np.linspace(-90.,90.,target_reg_increment)
+
 
         spline_knots_reg = None
         if splineFilePath is not None and os.path.exists(splineFilePath):
             # get spline knots from the spline file
-            spline_knots_radius =  np.flipud(np.loadtxt(splineFilePath, skiprows=1))
-            spline_knots = self.dataset.radius_in_meters/1000.0 - spline_knots_radius
+            spline_knots_radius: np.ndarray = np.flipud(np.loadtxt(splineFilePath, skiprows=1))
+            spline_knots: np.ndarray = self.dataset.radius_in_meters/1000.0 - spline_knots_radius
 
 
             # Get the relevant splines for the regional model
-            spline_knots_reg = spline_knots[np.where(np.logical_and \
+            spline_knots_reg: np.ndarray = spline_knots[np.where(np.logical_and \
                                             (spline_knots > min(self.dataset.depth.to_numpy()), \
                                             spline_knots < max(self.dataset.depth.to_numpy())))]
         return (lat_reg, lon_reg, spline_knots_reg)
@@ -109,17 +116,18 @@ class Dataset():
             raise ValueError("Incorrect file path: file could not be found")
         self.filePath = path
 
-    def getDataset(self):
+    def getDataset(self) -> xr.Dataset:
         return self.dataset
 
     def getModelType(self) -> int:
         return self.modelType
 
-    def setModelType(self, mt: int):
-        if mt not in [Dataset.REGIONAL, Dataset.GLOBAL]:
+    def setModelType(self, modelType: int):
+        if modelType not in [Dataset.REGIONAL, Dataset.GLOBAL]:
             raise ValueError("Model type must be Dataset.REGIONAL or Dataset.GLOBAL")
-        self.modelType = mt
+        self.modelType = modelType
     
+    # interpolate a depth slice
     def interpolate_slice(colats, lons, var_data, target_colats, lat_mask, target_lons, lon_mask, interpolated_data, i_d, lat_indices, lon_indices):
         # pdb.set_trace()
         interp_func = RectSphereBivariateSpline(colats, lons, var_data)
@@ -138,35 +146,36 @@ class Dataset():
         return interpolated_slice
 
     @staticmethod
-    def interpolate_model(ds, target_lats, target_lons, target_depths = None):
+    # Interpolate all depth slices
+    def interpolate_model(ds: xr.Dataset, target_lats: np.ndarray, target_lons: np.ndarray, target_depths: np.ndarray = None):
         # Create a new dataset for interpolated values
-        new_ds = xr.Dataset()
+        new_ds: xr.Dataset = xr.Dataset()
      
         # Decreasing latitude for increasing colatitudes
-        ds = ds.sortby('latitude', ascending=False)
+        ds: xr.Dataset = ds.sortby('latitude', ascending=False)
      
         # Interpolate over depth using builtin interp function
         if target_depths is not None:
-            tmp_ds = ds.interp(depth=target_depths, method='linear')
+            tmp_ds: xr.Dataset = ds.interp(depth=target_depths, method='linear')
         else:
-            tmp_ds = ds.copy()
+            tmp_ds: xr.Dataset = ds.copy()
      
         # Get the latitudes, longitudes, and depths of the variable
-        lats = tmp_ds.coords['latitude'].values
-        lons = tmp_ds.coords['longitude'].values
+        lats: np.ndarray = tmp_ds.coords['latitude'].values
+        lons: np.ndarray = tmp_ds.coords['longitude'].values
         
         # Convert to colatitude and radians
-        colats = np.pi/2 - np.deg2rad(lats)
-        lons = np.deg2rad(lons)
+        colats: np.ndarray = np.pi/2 - np.deg2rad(lats)
+        lons: np.ndarray = np.deg2rad(lons)
         
-        target_colats = np.pi/2 - np.deg2rad(np.flipud(target_lats))
-        target_lons = np.deg2rad(target_lons)
+        target_colats: np.ndarray = np.pi/2 - np.deg2rad(np.flipud(target_lats))
+        target_lons: np.ndarray = np.deg2rad(target_lons)
         
-        nlat = len(target_lats)
-        nlon = len(target_lons)
+        nlat: int = len(target_lats)
+        nlon: int = len(target_lons)
         ndepths = None
         if target_depths is not None:
-            ndepths = len(target_depths)
+            ndepths: int = len(target_depths)
         
         # Create mask to interpolate on, rest will be filled with NaNs
         min_colat = np.min(colats)
@@ -211,7 +220,7 @@ class Dataset():
 
         return new_ds
 
-    def convert_units(self, depthUnit = 'm'):
+    def convert_units(self, depthUnit: str = 'm'):
 
         if depthUnit == 'm':
             self.dataset = self.dataset.assign_coords(depth=self.dataset.depth / 1000.0)
@@ -253,7 +262,7 @@ class Dataset():
             if not found:
                 raise ValueError(f"Could not detect variable name for {key}")
     
-    def save_model(self, filePath):
+    def save_model(self, filePath: str):
         if filePath is None:
             raise ValueError("File path to save model must be given")
         self.dataset.to_netcdf(filePath)
