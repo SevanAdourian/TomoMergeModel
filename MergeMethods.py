@@ -155,7 +155,6 @@ class MergeMethods():
                             ( (reg_field[yvar] >= lat_bottom) & (reg_field[yvar] <= lat_top) ),1,0)
         # 
         reg_zmesh_mask=(np.reshape(reg_zmask,(ylen,xlen)))
-        # reg_mask_xyz=np.column_stack((reg_field[:,0],reg_field[:,1],reg_zmask))
         
         #-----------
         if self.conf['win_type'] == 'spherical': # spherical or rectangular'
@@ -209,7 +208,6 @@ class MergeMethods():
     def process_slice(self, depth):
     # Reading in global tomography model
         zmesh_global = self.reshape_field(self.global_model.getDataset(), depth)
-        # zmesh_global = self.global_model.getDataset()[self.varname].sel(depth=depth)
         
         global_grid, global_clm = self.convert_to_spherical_harmonics(zmesh_global, self.conf["reg_lmax"])
         
@@ -257,7 +255,6 @@ class MergeMethods():
     def merge(self):
         # Loop over depths serially (no multiprocessing)
         depths = self.conf['depth_knots']
-        # print("depths - ", depths)
         results = []
         with multiprocessing.Pool() as pool:
             for depth in depths:

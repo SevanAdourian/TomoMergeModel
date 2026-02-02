@@ -129,15 +129,11 @@ class Dataset():
     
     # interpolate a depth slice
     def interpolate_slice(colats, lons, var_data, target_colats, lat_mask, target_lons, lon_mask, interpolated_data, i_d, lat_indices, lon_indices):
-        # pdb.set_trace()
         interp_func = RectSphereBivariateSpline(colats, lons, var_data)
                
         # Inteprolate on new grid for given depth
-        # interpolated_data[lat_mask,lon_mask,i_d] = interp_func(target_colats[lat_mask],\
-        #                                                        target_lons[lon_mask])
         raw_interp = interp_func(target_colats[lat_mask],\
                                 target_lons[lon_mask])
-        # breakpoint()
         if i_d is not None:
             interpolated_slice = interpolated_data[:,:,i_d]
         else:
@@ -200,15 +196,9 @@ class Dataset():
                     
                     # Create an interpolation function for the variable at given depth
                     interpolated_data[:,:,i_d] = Dataset.interpolate_slice(colats, lons, var_data, target_colats, lat_mask, target_lons, lon_mask, interpolated_data, i_d, lat_indices, lon_indices)
-
-                    #### DEBUG
-                    # pdb.set_trace()
             else:
                 var_data = tmp_ds[varname].values
                 interpolated_data[:,:] = Dataset.interpolate_slice(colats, lons, var_data, target_colats, lat_mask, target_lons, lon_mask, interpolated_data, None, lat_indices, lon_indices)
-
-                #### DEBUG
-                # pdb.set_trace()
             
             # Update the data array for the variable in the new dataset
             new_ds[varname]= xr.DataArray(interpolated_data, \
