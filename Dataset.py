@@ -17,6 +17,7 @@ from scipy.interpolate import RectSphereBivariateSpline, RectBivariateSpline
 class Dataset():
     REGIONAL = 0 # Regional Dataset object
     GLOBAL = 1 # Global Dataset object
+    RADIUS_IN_METERS = 6371000
     # constructors
     def __init__(self, filePath: str, modelType: int, splineFilePath: str = None, depthUnits: str = None, xrDataset: xr.Dataset = None, globalModel: Dataset = None):
 
@@ -94,7 +95,7 @@ class Dataset():
         if splineFilePath is not None and os.path.exists(splineFilePath):
             # get spline knots from the spline file
             spline_knots_radius: np.ndarray = np.flipud(np.loadtxt(splineFilePath, skiprows=1))
-            spline_knots: np.ndarray = self.dataset.radius_in_meters/1000.0 - spline_knots_radius
+            spline_knots: np.ndarray = Dataset.RADIUS_IN_METERS/1000.0 - spline_knots_radius
 
 
             # Get the relevant splines for the regional model
@@ -345,7 +346,7 @@ class Dataset():
             filepath = None
             if save_dir is not None:
                 safe_name = var.replace('/', '_').replace(' ', '_')
-                filepath = os.path.join(save_dir, f"{safe_name}.png")
+                filepath = os.path.join(save_dir, f"{safe_name}_{str(depth)}.png")
                 fig.savefig(filepath, bbox_inches='tight', dpi=150)
             if show:
                 plt.show()

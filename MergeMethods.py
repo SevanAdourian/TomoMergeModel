@@ -260,35 +260,11 @@ class MergeMethods():
         # On Windows, process-based multiprocessing uses "spawn" which re-imports modules.
         # Using a process Pool with bound methods/self can also hang due to pickling.
         # A thread pool avoids both issues and is reliable here.
-        parallel_default = False if sys.platform.startswith('win') else True
-        parallel = bool(self.conf.get('parallel', parallel_default))
-        max_workers = int(
-            self.conf.get(
-                'n_workers',
-                max(1, min(4, os.cpu_count() or 1)),
-            )
-        )
-
-        merged_by_depth = {}
-        if parallel and len(depths) > 1 and max_workers > 1:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_to_depth = {
-                    executor.submit(self.process_slice, float(depth)): float(depth)
-                    for depth in depths
-                }
-                for future in concurrent.futures.as_completed(future_to_depth):
-                    depth = future_to_depth[future]
-                    try:
-                        merged_by_depth[depth] = future.result()
-                    except Exception as e:
-                        raise RuntimeError(f"Failed while processing depth={depth}") from e
-            merged_arrays = [merged_by_depth[float(depth)] for depth in depths]
-        else:
-            merged_arrays = []
-            for depth in depths:
-                depth_val = float(depth)
-                print("depth - ", depth_val)
-                merged_arrays.append(self.process_slice(depth_val))
+        merged_arrays = []
+        for depth in depths:
+            depth_val = float(depth)
+            print("depth - ", depth_val)
+            merged_arrays.append(self.process_slice(depth_val))
 
         # Actually concatneation returns a DataArray, not a DataSet
         merged_all_arrays = xr.concat(merged_arrays, dim="depth")

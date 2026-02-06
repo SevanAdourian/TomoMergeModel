@@ -1,5 +1,5 @@
 # Input files
-path_to_regional_model: './Data/netcdf/CANVAS_15-60s_400km.nc' # has to be netcdf
+path_to_regional_model: './Data/netcdf/alaska.nc' # has to be netcdf
 path_to_global_model: './Data/netcdf/glad-m25-vs-0.0-n4.nc' # has to be netcdf
 # path_to_global_model: './Data/semucb-2014-ucb-vs.nc'
 # path_to_ref_model: './Data/STW105.txt' # Reference 1D model
@@ -13,18 +13,18 @@ path_to_ascii_files: './Data/ascii' # path to output of the ascii files for inte
 path_to_figures: './Data/figures'
 
 ## Parameters to create region
-reg_lmax: 50 # Lmax of regional model (in spherical harmonics)
-win_lmax: 20 # Maximum degree of expansion for windowing functions.
-win_eff_lmax: 20  # Maximum effective degree for the windowing. 
+reg_lmax: 239 # Lmax of regional model (in spherical harmonics)
+win_lmax: 178 # Maximum degree of expansion for windowing functions.
+win_eff_lmax: 100  # Maximum effective degree for the windowing. 
 # When win_eff_lmax is close win_lmax means, there is no further smoothing.
 # win_lmax should not be too high otherwise it requires too much memory and the code crashes.
 # The max value for win_lmax should be around ~180. win_eff_lmax can be varied to choose the smoothness.
 
 # Coordinates of the region one wants to merge in a gloal model
-lon_min_mask: 235.0
-lon_max_mask: 253.0
-lat_min_mask: 31.5      # possible range: -90, 90 deg
-lat_max_mask: 43.0       # possible range: -90, 90 deg
+lon_min_mask: 197.5
+lon_max_mask: 230.5
+lat_min_mask: 52.65      # possible range: -90, 90 deg
+lat_max_mask: 71.55       # possible range: -90, 90 deg
 # Type of windowing
 # win_type: rectangular # spherical or rectangular
 win_type: spherical # spherical or rectangular

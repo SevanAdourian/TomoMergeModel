@@ -13,10 +13,10 @@ def main() -> None:
 		depthUnits="km",
 	)
 	regional_mod = Dataset(
-		"Data/netcdf/CANVAS_15-60s_400km.nc",
+		"Data/netcdf/alaska.nc",
 		Dataset.REGIONAL,
 		"Data/spline.par",
-		"m",
+		"km",
 		globalModel=global_mod,
 	)
 
@@ -27,11 +27,10 @@ def main() -> None:
 	merged_mod = merger.merge()
 
 	print("Displaying Merged Maps")
-	merged_mod.plot_all_variables()
+	for depth in merged_mod.getDataset().depth.values:
+		merged_mod.plot_all_variables(depth=depth, save_dir="alaska_plots")
 	print("End of Merged Map Displays")
 
 
 if __name__ == "__main__":
-	# Required on Windows when using multiprocessing (directly or indirectly)
-	multiprocessing.freeze_support()
 	main()
