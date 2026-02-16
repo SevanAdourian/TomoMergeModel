@@ -19,7 +19,7 @@ class Dataset():
     GLOBAL = 1 # Global Dataset object
     RADIUS_IN_METERS = 6371000
     # constructors
-    def __init__(self, filePath: str, modelType: int, splineFilePath: str = None, depthUnits: str = None, xrDataset: xr.Dataset = None, globalModel: Dataset = None):
+    def __init__(self, filePath: str, modelType: int, depthUnits: str = None, xrDataset: xr.Dataset = None, globalModel: Dataset = None, depths: list[int] = None):
 
         # Input validation for file path
         if filePath is None:
@@ -31,13 +31,14 @@ class Dataset():
         
         # If model is regional, and a spline file and global model are given, depth units are needed
         if modelType == Dataset.REGIONAL:
-            if splineFilePath is not None and globalModel is not None and depthUnits is None:
+            if depths is not None and globalModel is not None and depthUnits is None:
                 raise ValueError("If interpolation on depths is needed, depth units must be given")
             
         
         # assign the file path and model type, and parse file for other attributes
         self.filePath: str = filePath
         self.modelType: int = modelType
+        self.depths: list[int] = depths
 
         # open the file, reassign variable names, homogenize units, and convert longitude values
         if filePath == "":
@@ -52,7 +53,7 @@ class Dataset():
         self.convert_units(depthUnits)
 
         if self.modelType == Dataset.REGIONAL: # interpolating the regional model
-            target_lats, target_lons, target_depths = self.getInterpolationParameters(splineFilePath, globalModel=globalModel)
+            target_lats, target_lons, target_depths = self.getInterpolationParameters(depths, globalModel=globalModel)
             self.dataset: xr.Dataset = Dataset.interpolate_model(self.dataset, target_lats, target_lons, target_depths)
 
         # convert the longitude
@@ -79,7 +80,7 @@ class Dataset():
             return Dataset(conf["path_to_global_model"], modelType)
 
     # get the interpolation parameters based on the regional and global model
-    def getInterpolationParameters(self, splineFilePath: str, globalModel: Dataset) -> tuple:
+    def getInterpolationParameters(self, depths: list[int], globalModel: Dataset) -> tuple:
         # get target latitude and longitude
         glo: xr.Dataset = globalModel.getDataset()
         dlon_reg: xr.DataArray = glo.longitude[1] - glo.longitude[0]
@@ -92,9 +93,9 @@ class Dataset():
 
 
         spline_knots_reg = None
-        if splineFilePath is not None and os.path.exists(splineFilePath):
+        if depths is not None:
             # get spline knots from the spline file
-            spline_knots_radius: np.ndarray = np.flipud(np.loadtxt(splineFilePath, skiprows=1))
+            spline_knots_radius: np.ndarray = np.array(depths)
             spline_knots: np.ndarray = Dataset.RADIUS_IN_METERS/1000.0 - spline_knots_radius
 
 

@@ -7,16 +7,17 @@ from MergeMethods import MergeMethods
 
 
 def main() -> None:
+	depths = [6341, 6321, 6301, 6281, 6261, 6131]
 	global_mod = Dataset(
 		"Data/netcdf/glad-m25-vs-0.0-n4.nc",
 		Dataset.GLOBAL,
 		depthUnits="km",
 	)
 	regional_mod = Dataset(
-		"Data/netcdf/alaska.nc",
-		Dataset.REGIONAL,
-		"Data/spline.par",
-		"km",
+		filePath="Data/netcdf/alaska.nc",
+		modelType=Dataset.REGIONAL,
+		depths=depths,
+		depthUnits="km",
 		globalModel=global_mod,
 	)
 
@@ -28,7 +29,7 @@ def main() -> None:
 
 	print("Displaying Merged Maps")
 	for depth in merged_mod.getDataset().depth.values:
-		merged_mod.plot_all_variables(depth=depth, save_dir="alaska_plots")
+		merged_mod.plot_all_variables(depth=depth, save_dir="alaska_plots", show=False)
 	print("End of Merged Map Displays")
 
 

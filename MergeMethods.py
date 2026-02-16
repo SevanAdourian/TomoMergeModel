@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import pdb
+import matplotlib.pyplot as plt
 
 class MergeMethods():
     # constructors
@@ -78,7 +79,7 @@ class MergeMethods():
         #  - Mask parameters
         # Part of the regional model that will be preserved in the merging.
         # Read in the depth file
-        conf['depth_knots_radius'] =  np.flipud(np.loadtxt(depth_file, skiprows=1))
+        conf['depth_knots_radius'] =  np.array(self.regional_model.depths)
         conf['depth_knots'] = conf['radius_in_meters']/1000.0 - conf['depth_knots_radius']
         conf['base_global_ascii_files'] = conf['path_to_ascii_files']+'/global_'
         conf['base_regional_ascii_files']    = conf['path_to_ascii_files']+'/regional_'
@@ -194,16 +195,14 @@ class MergeMethods():
         # - Multiply grid by mask
         reg_grid_masked=reg_grid*reg_win_energy_grid  
         reg_clm_masked=pyshtools.SHGrid.expand(reg_grid_masked)
-        
-        #   - Apply windows to global grid
-        global_grid_masked=global_grid*reg_win_energy_grid
-        global_clm_masked=pyshtools.SHGrid.expand(global_grid_masked)
-        
-        # Sum regional and global spectra inside box
-        summed_clm_masked=reg_clm_masked+global_clm_masked
+
+        # Plot map and spectra for reg_clm_masked
 
         # Sum regional spectrum inside box (masked) with global spectra outside box (unmasked)
         summed_clm=reg_clm_masked+global_clm
+
+        # Plot map and spectra for summed_clm
+
         summed_grid=pyshtools.SHCoeffs.expand(summed_clm)
         return summed_grid
     
@@ -212,6 +211,7 @@ class MergeMethods():
         zmesh_global = self.reshape_field(self.global_model.getDataset(), depth)
         
         global_grid, global_clm = self.convert_to_spherical_harmonics(zmesh_global, self.conf["reg_lmax"])
+        # Plot map and spectra for global_clm
         
         if depth < self.conf['max_depth_regional_model']:
             # Above where the regional model is defined in depth, actual merging
@@ -247,6 +247,15 @@ class MergeMethods():
         )
 
         return da
+
+    def plot_map_and_spectra(self, grid_object, clm_object, file_name):
+        fig, (col1, col2) = plt.subplots(2, 1)
+        grid_object.plot(ax=col1, colorbar='right', cb_label='Power', show=False)
+        clm_object.plot_spectrum(ax=col2)
+        fig.legend(loc = 'upper right')
+        fig.savefig(file_name, dpi=400)
+        plt.close(fig)
+        return
 
     def reshape_field(self, lon_lat_field, depth):
         varname = list(lon_lat_field.data_vars)[0]
