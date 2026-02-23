@@ -39,6 +39,8 @@ class Dataset():
         self.filePath: str = filePath
         self.modelType: int = modelType
         self.depths: list[int] = depths
+        if depths == None and modelType == Dataset.REGIONAL:
+            self.depths = globalModel.getDataset().depth.values
 
         # open the file, reassign variable names, homogenize units, and convert longitude values
         if filePath == "":

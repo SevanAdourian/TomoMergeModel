@@ -7,7 +7,7 @@ from MergeMethods import MergeMethods
 
 
 def main() -> None:
-	depths = [6341, 6321, 6301, 6281, 6261, 6131]
+	depths = [6131]
 	global_mod = Dataset(
 		"Data/netcdf/glad-m25-vs-0.0-n4.nc",
 		Dataset.GLOBAL,

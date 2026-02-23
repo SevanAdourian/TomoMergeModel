@@ -197,6 +197,7 @@ class MergeMethods():
         reg_clm_masked=pyshtools.SHGrid.expand(reg_grid_masked)
 
         # Plot map and spectra for reg_clm_masked
+        self.plot_map_and_spectra(reg_grid_masked, reg_clm_masked, "region.png")
 
         # Sum regional spectrum inside box (masked) with global spectra outside box (unmasked)
         summed_clm=reg_clm_masked+global_clm
@@ -204,6 +205,7 @@ class MergeMethods():
         # Plot map and spectra for summed_clm
 
         summed_grid=pyshtools.SHCoeffs.expand(summed_clm)
+        self.plot_map_and_spectra(summed_grid, summed_clm, "merged.png")
         return summed_grid
     
     def process_slice(self, depth):
@@ -212,16 +214,18 @@ class MergeMethods():
         
         global_grid, global_clm = self.convert_to_spherical_harmonics(zmesh_global, self.conf["reg_lmax"])
         # Plot map and spectra for global_clm
+
+        if depth == 240:
+            self.plot_map_and_spectra(global_grid, global_clm, "global_240.png")
         
         if depth < self.conf['max_depth_regional_model']:
             # Above where the regional model is defined in depth, actual merging
             # Reading in regional tomography model
             zmesh_regional = self.reshape_field(self.regional_model.getDataset(), depth)
 
-            
             reg_grid, reg_clm = self.convert_to_spherical_harmonics(zmesh_regional, self.conf["reg_lmax"])
             # Doing mask windowing
-            reg_win_energy_grid = self.create_window(self.regional_model.getDataset(), global_clm)
+            reg_win_energy_grid = self.create_window(self.regional_model.getDataset().sel(depth=depth), global_clm)
             summed_grid = self.apply_window(global_grid, global_clm, reg_grid, reg_win_energy_grid)
         else:
             # Below where the regional model is defined, we just write the global model
@@ -260,8 +264,8 @@ class MergeMethods():
     def reshape_field(self, lon_lat_field, depth):
         varname = list(lon_lat_field.data_vars)[0]
         zmesh = lon_lat_field[varname].sel(depth=float(depth))
-
-        return zmesh.values
+        zmesh = np.flipud(zmesh.values)
+        return zmesh
 
     def merge(self):
         depths = list(self.conf['depth_knots'])
@@ -281,7 +285,7 @@ class MergeMethods():
 
         # Needed for multiprocessing
         self.merge_model = self.merge_model.sortby("depth")
-        self.merge_model = self.merge_model.assign_coords(latitude=self.merge_model.latitude[::-1]).sortby("latitude")
+        # self.merge_model = self.merge_model.assign_coords(latitude=self.merge_model.latitude[::-1]).sortby("latitude")
         self.merge_model = self.merge_model.assign_coords(longitude=((self.merge_model.longitude + 180) % 360)).sortby("longitude")
         self.merge_model = Dataset("", Dataset.GLOBAL, xrDataset=self.merge_model, depthUnits='km')
 
