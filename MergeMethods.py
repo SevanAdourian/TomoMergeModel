@@ -270,6 +270,7 @@ class MergeMethods():
 
     def reshape_field(self, lon_lat_field, depth, varname):
         zmesh = lon_lat_field[varname].sel(depth=float(depth))
+        zmesh.sortby('longitude')
         zmesh = np.flipud(zmesh.values)
         return zmesh
 
