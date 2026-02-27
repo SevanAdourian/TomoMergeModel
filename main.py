@@ -21,7 +21,7 @@ def main() -> None:
 		globalModel=global_mod,
 	)
 
-	merger = MergeMethods(regional_mod, global_mod, "conf.yaml")
+	merger = MergeMethods(regional_mod, global_mod, "conf.yaml", 'Vs', 'vsv')
 	print("Created merge methods instance")
 
 	print("Merging global and regional")
@@ -29,7 +29,7 @@ def main() -> None:
 
 	print("Displaying Merged Maps")
 	for depth in merged_mod.getDataset().depth.values:
-		merged_mod.plot_all_variables(depth=depth, save_dir="alaska_plots", show=False)
+		merged_mod.plot_all_variables(depth=depth, save_dir="plots_178_lmax", show=False)
 	print("End of Merged Map Displays")
 
 

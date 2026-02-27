@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 class MergeMethods():
     # constructors
-    def __init__(self, modelOne: Dataset, modelTwo: Dataset, confFilePath):
+    def __init__(self, modelOne: Dataset, modelTwo: Dataset, confFilePath, regionalVariable, globalVariable):
 
         # input validation
         if modelOne is None or modelTwo is None:
@@ -52,6 +52,13 @@ class MergeMethods():
             raise ValueError(e)
         except:
             raise ValueError("Unable to parse config file")
+
+        if regionalVariable not in list(self.regional_model.getDataset().data_vars):
+            raise ValueError(f"Could not find regional variable {regionalVariable} in regional model")
+        if globalVariable not in list(self.global_model.getDataset().data_vars):
+            raise ValueError(f"Could not find global variable {globalVariable} in global model")
+        self.regionalVariable = regionalVariable
+        self.globalVariable = globalVariable
 
     def containsAllParams(self, conf):
         params = ['path_to_regional_model', 
@@ -197,7 +204,7 @@ class MergeMethods():
         reg_clm_masked=pyshtools.SHGrid.expand(reg_grid_masked)
 
         # Plot map and spectra for reg_clm_masked
-        self.plot_map_and_spectra(reg_grid_masked, reg_clm_masked, "region.png")
+        self.plot_map_and_spectra(reg_grid_masked, reg_clm_masked, "plots_178_lmax/region.png")
 
         # Sum regional spectrum inside box (masked) with global spectra outside box (unmasked)
         summed_clm=reg_clm_masked+global_clm
@@ -205,23 +212,23 @@ class MergeMethods():
         # Plot map and spectra for summed_clm
 
         summed_grid=pyshtools.SHCoeffs.expand(summed_clm)
-        self.plot_map_and_spectra(summed_grid, summed_clm, "merged.png")
+        self.plot_map_and_spectra(summed_grid, summed_clm, "plots_178_lmax/merged.png")
         return summed_grid
     
     def process_slice(self, depth):
     # Reading in global tomography model
-        zmesh_global = self.reshape_field(self.global_model.getDataset(), depth)
+        zmesh_global = self.reshape_field(self.global_model.getDataset(), depth, self.globalVariable)
         
         global_grid, global_clm = self.convert_to_spherical_harmonics(zmesh_global, self.conf["reg_lmax"])
         # Plot map and spectra for global_clm
 
         if depth == 240:
-            self.plot_map_and_spectra(global_grid, global_clm, "global_240.png")
+            self.plot_map_and_spectra(global_grid, global_clm, "plots_178_lmax/global_240.png")
         
         if depth < self.conf['max_depth_regional_model']:
             # Above where the regional model is defined in depth, actual merging
             # Reading in regional tomography model
-            zmesh_regional = self.reshape_field(self.regional_model.getDataset(), depth)
+            zmesh_regional = self.reshape_field(self.regional_model.getDataset(), depth, self.regionalVariable)
 
             reg_grid, reg_clm = self.convert_to_spherical_harmonics(zmesh_regional, self.conf["reg_lmax"])
             # Doing mask windowing
@@ -261,8 +268,7 @@ class MergeMethods():
         plt.close(fig)
         return
 
-    def reshape_field(self, lon_lat_field, depth):
-        varname = list(lon_lat_field.data_vars)[0]
+    def reshape_field(self, lon_lat_field, depth, varname):
         zmesh = lon_lat_field[varname].sel(depth=float(depth))
         zmesh = np.flipud(zmesh.values)
         return zmesh
@@ -286,7 +292,7 @@ class MergeMethods():
         # Needed for multiprocessing
         self.merge_model = self.merge_model.sortby("depth")
         # self.merge_model = self.merge_model.assign_coords(latitude=self.merge_model.latitude[::-1]).sortby("latitude")
-        self.merge_model = self.merge_model.assign_coords(longitude=((self.merge_model.longitude + 180) % 360)).sortby("longitude")
+        # self.merge_model = self.merge_model.assign_coords(longitude=((self.merge_model.longitude + 180) % 360)).sortby("longitude")
         self.merge_model = Dataset("", Dataset.GLOBAL, xrDataset=self.merge_model, depthUnits='km')
 
         return self.merge_model
