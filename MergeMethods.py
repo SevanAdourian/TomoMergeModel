@@ -132,7 +132,7 @@ class MergeMethods():
     def convert_to_spherical_harmonics(self, zmesh, reg_lmax):
         #   - Convert to spherical harmonics with pySHtools
         mask = np.isnan(zmesh)
-        zmesh[mask] = 0.0
+        zmesh[mask] = np.nanmean(np.nanmean(zmesh))
         grid = pyshtools.SHGrid.from_array(zmesh, grid= 'DH')
         clm = pyshtools.SHGrid.expand(grid)
         clm = clm.pad(reg_lmax)  #Pad to match global clm
@@ -165,7 +165,9 @@ class MergeMethods():
                             ( (reg_field[yvar] >= lat_bottom) & (reg_field[yvar] <= lat_top) ),1,0)
         # 
         reg_zmesh_mask=(np.reshape(reg_zmask,(ylen,xlen)))
-        
+
+        print(f"Inside create_window")
+        pdb.set_trace()
         #-----------
         if self.conf['win_type'] == 'spherical': # spherical or rectangular'
             #   - Construct spherical harmonic window function from mask
@@ -219,7 +221,7 @@ class MergeMethods():
     # Reading in global tomography model
         zmesh_global = self.reshape_field(self.global_model.getDataset(), depth, self.globalVariable)
         
-        global_grid, global_clm = self.convert_to_spherical_harmonics(zmesh_global, self.conf["reg_lmax"])
+        global_grid, global_clm = self.convert_to_spherical_harmonics(zmesh_global.values, self.conf["reg_lmax"])
         # Plot map and spectra for global_clm
 
         if depth == 240:
@@ -229,11 +231,13 @@ class MergeMethods():
             # Above where the regional model is defined in depth, actual merging
             # Reading in regional tomography model
             zmesh_regional = self.reshape_field(self.regional_model.getDataset(), depth, self.regionalVariable)
-
-            reg_grid, reg_clm = self.convert_to_spherical_harmonics(zmesh_regional, self.conf["reg_lmax"])
+            reg_grid, reg_clm = self.convert_to_spherical_harmonics(zmesh_regional.values, self.conf["reg_lmax"])
             # Doing mask windowing
-            reg_win_energy_grid = self.create_window(self.regional_model.getDataset().sel(depth=depth), global_clm)
+            pdb.set_trace()
+            # reg_win_energy_grid = self.create_window(self.regional_model.getDataset().sel(depth=depth), global_clm)
+            reg_win_energy_grid = self.create_window(zmesh_regional, global_clm)
             summed_grid = self.apply_window(global_grid, global_clm, reg_grid, reg_win_energy_grid)
+            pdb.set_trace()
         else:
             # Below where the regional model is defined, we just write the global model
             summed_grid = global_grid
@@ -271,7 +275,8 @@ class MergeMethods():
     def reshape_field(self, lon_lat_field, depth, varname):
         zmesh = lon_lat_field[varname].sel(depth=float(depth))
         zmesh = zmesh.sortby('longitude')
-        zmesh = np.flipud(zmesh.values)
+        zmesh.assign_coords(latitude=zmesh.latitude[::-1])
+        # zmesh_values = np.flipud(zmesh.values)
         return zmesh
 
     def merge(self):
