@@ -24,3 +24,4 @@ dependencies:
     - conda-build
     - pytest
     - pyyaml
+    - ruff
