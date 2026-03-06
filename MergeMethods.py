@@ -25,6 +25,7 @@ class MergeMethods:
         regionalVariable: str,
         globalVariable: str,
     ):
+        """Initialize with one regional and one global dataset, config parameters, and variable names."""
 
         # input validation
         if modelOne is None or modelTwo is None:
@@ -72,15 +73,23 @@ class MergeMethods:
 
     # getters and setters here
     def getRegionalModel(self) -> Dataset:
+        """Return the regional model dataset."""
+
         return self.regional_model
 
     def getGlobalModel(self) -> Dataset:
+        """Return the global model dataset."""
+
         return self.global_model
 
     def getConf(self):
+        """Return the configuration parameters."""
+
         return self.conf
 
     def setRegionalModel(self, model: Dataset) -> None:
+        """Set the regional model after validation."""
+
         if model is None:
             raise ValueError("Null model provided")
         if model.getModelType() != Dataset.REGIONAL:
@@ -88,6 +97,8 @@ class MergeMethods:
         self.regional_model = model
 
     def setGlobalModel(self, model: Dataset) -> None:
+        """Set the global model after validation."""
+
         if model is None:
             raise ValueError("Null model provided")
         if model.getModelType() != Dataset.GLOBAL:
@@ -95,6 +106,8 @@ class MergeMethods:
         self.global_model = model
 
     def setConf(self, configParams):
+        """Set the configuration parameters after validation."""
+
         if configParams is None:
             raise ValueError("Must provide a configuration file for merging variables")
 
@@ -102,6 +115,8 @@ class MergeMethods:
 
     # merge function and helper functions here
     def convert_to_spherical_harmonics(self, zmesh, reg_lmax):
+        """Convert a 2D grid to spherical harmonics coefficients up to specified lmax."""
+
         # Set nan values to the mean of the region
         mask = np.isnan(zmesh)
         zmesh[mask] = np.nanmean(np.nanmean(zmesh))
@@ -189,15 +204,11 @@ class MergeMethods:
         return reg_win_energy_grid
 
     def apply_window(self, global_grid, global_clm, reg_grid, reg_win_energy_grid):
+        """Apply windowing mask to regional grid and merge with global model."""
 
         # - Multiply grid by mask
         reg_grid_masked = reg_grid * reg_win_energy_grid
         reg_clm_masked = pyshtools.SHGrid.expand(reg_grid_masked)
-
-        # Plot map and spectra for reg_clm_masked
-        self.plot_map_and_spectra(
-            reg_grid_masked, reg_clm_masked, "plots_178_lmax/region.png"
-        )
 
         # Sum regional spectrum inside box (masked) with global spectra outside box (unmasked)
         summed_clm = reg_clm_masked + global_clm
@@ -205,10 +216,11 @@ class MergeMethods:
         # Plot map and spectra for summed_clm
 
         summed_grid = pyshtools.SHCoeffs.expand(summed_clm)
-        self.plot_map_and_spectra(summed_grid, summed_clm, "plots_178_lmax/merged.png")
         return summed_grid
 
     def process_slice(self, depth):
+        """Process and merge regional/global models at a single depth slice."""
+
         # Reading in global tomography model
         zmesh_global = self.reshape_field(
             self.global_model.getDataset(), depth, self.globalVariable
@@ -217,12 +229,6 @@ class MergeMethods:
         global_grid, global_clm = self.convert_to_spherical_harmonics(
             zmesh_global, self.conf.reg_lmax
         )
-        # Plot map and spectra for global_clm
-
-        if depth == 240:
-            self.plot_map_and_spectra(
-                global_grid, global_clm, "plots_178_lmax/global_240.png"
-            )
 
         if depth < max(list(self.regional_model.depths)):
             # Above where the regional model is defined in depth, actual merging
@@ -267,6 +273,8 @@ class MergeMethods:
         return da
 
     def plot_map_and_spectra(self, grid_object, clm_object, file_name):
+        """Plot spatial grid and power spectrum side by side and save to file."""
+
         fig, (col1, col2) = plt.subplots(2, 1)
         grid_object.plot(ax=col1, colorbar="right", cb_label="Power", show=False)
         clm_object.plot_spectrum(ax=col2)
@@ -276,6 +284,8 @@ class MergeMethods:
         return
 
     def reshape_field(self, lon_lat_field, depth, varname):
+        """Extract and reshape a 2D field at a given depth for spherical harmonic expansion."""
+
         zmesh = lon_lat_field[varname].sel(depth=float(depth))
         zmesh = zmesh.sortby("longitude")
         # zmesh.assign_coords(latitude=zmesh.latitude[::-1])
@@ -283,6 +293,8 @@ class MergeMethods:
         return zmesh
 
     def merge(self):
+        """Merge regional and global models across all depth slices and return merged Dataset."""
+
         depths = self.regional_model.depths
 
         # On Windows, process-based multiprocessing uses "spawn" which re-imports modules.

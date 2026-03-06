@@ -11,6 +11,8 @@ class ConfigParams:
         lat_bounds: tuple[int],
         win_type: str,
     ):
+        """Initialize configuration parameters for merging regional and global models."""
+
         self.reg_lmax = reg_lmax
         self.win_lmax = win_lmax
         self.win_eff_lmax = win_eff_lmax

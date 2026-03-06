@@ -30,6 +30,7 @@ class Dataset:
         globalModel: Dataset = None,
         depths: list[int] = None,
     ):
+        """Initialize a dataset and normalize its coordinates and units."""
 
         # Input validation for file path
         if filePath is None:
@@ -76,38 +77,12 @@ class Dataset:
         # convert the longitude
         self.convert_longitude()
 
-    # Initialize a Dataset from the conf.yaml file
-    @classmethod
-    def initFromConf(modelType: int, globalModel: Dataset = None) -> Dataset:
-
-        # Input validation for model type
-        if modelType not in [Dataset.REGIONAL, Dataset.GLOBAL]:
-            raise ValueError("Model type must be Dataset.REGIONAL or Dataset.GLOBAL")
-
-        # load the conf.yaml file
-        try:
-            with open("conf.yaml", "r") as file:
-                conf = yaml.safe_load(file)
-        except OSError:
-            raise ValueError("conf.yaml not found or not in working directory")
-        # return to the user, a Dataset instance depending on the model type and file path in conf.yaml
-        if modelType == Dataset.REGIONAL:
-            return Dataset(
-                conf["path_to_regional_model"],
-                modelType,
-                conf["depth_file"],
-                None,
-                conf["path_to_global_model"],
-                conf["units_regional_depth"],
-                globalModel=globalModel,
-            )
-        if modelType == Dataset.GLOBAL:
-            return Dataset(conf["path_to_global_model"], modelType)
-
     # get the interpolation parameters based on the regional and global model
     def getInterpolationParameters(
         self, depths: list[int], globalModel: Dataset
     ) -> tuple:
+        """Return target latitude/longitude grids and optional depth knots."""
+
         # get target latitude and longitude
         glo: xr.Dataset = globalModel.getDataset()
         dlon_reg: xr.DataArray = glo.longitude[1] - glo.longitude[0]
@@ -139,9 +114,13 @@ class Dataset:
 
     # getters and setters here
     def getFilePath(self) -> str:
+        """Return the source file path for this dataset."""
+
         return self.filePath
 
     def setFilePath(self, path: str):
+        """Set the dataset file path after validating it exists."""
+
         if path is None:
             raise ValueError("Need to pass in file path")
         if not isinstance(path, str):
@@ -151,12 +130,18 @@ class Dataset:
         self.filePath = path
 
     def getDataset(self) -> xr.Dataset:
+        """Return the underlying xarray dataset."""
+
         return self.dataset
 
     def getModelType(self) -> int:
+        """Return the model type constant for this dataset."""
+
         return self.modelType
 
     def setModelType(self, modelType: int):
+        """Set the model type after validating allowed values."""
+
         if modelType not in [Dataset.REGIONAL, Dataset.GLOBAL]:
             raise ValueError("Model type must be Dataset.REGIONAL or Dataset.GLOBAL")
         self.modelType = modelType
@@ -175,6 +160,8 @@ class Dataset:
         lat_indices,
         lon_indices,
     ):
+        """Interpolate one 2D depth slice onto the target spherical grid."""
+
         interp_func = RectSphereBivariateSpline(colats, lons, var_data)
 
         # Inteprolate on new grid for given depth
@@ -195,6 +182,8 @@ class Dataset:
         target_lons: np.ndarray,
         target_depths: np.ndarray = None,
     ):
+        """Interpolate all variables to target latitude/longitude and optional depth grids."""
+
         # Create a new dataset for interpolated values
         new_ds: xr.Dataset = xr.Dataset()
 
@@ -292,6 +281,7 @@ class Dataset:
         return new_ds
 
     def convert_units(self, depthUnit: str = "m"):
+        """Convert depth and supported velocity fields between meter and kilometer units."""
 
         if depthUnit == "m":
             self.dataset = self.dataset.assign_coords(depth=self.dataset.depth / 1000.0)
@@ -309,6 +299,8 @@ class Dataset:
             raise ValueError("Depth Units must be m or km")
 
     def convert_longitude(self):
+        """Convert longitude values from [-180, 180] style to [0, 360]."""
+
         lon_0_360 = []
         for lon in self.dataset.longitude.to_numpy():
             if lon < 0:
@@ -320,6 +312,8 @@ class Dataset:
         self.dataset = self.dataset.assign_coords(longitude=lon_0_360)
 
     def assign_names(self):
+        """Rename coordinate variables to standard latitude, longitude, and depth names."""
+
         name_map = {
             "latitude": ["lat", "latitude", "Latitude", "LAT"],
             "longitude": ["lon", "longitude", "Longitude", "LON"],
@@ -338,6 +332,8 @@ class Dataset:
                 raise ValueError(f"Could not detect variable name for {key}")
 
     def save_model(self, filePath: str):
+        """Save the current dataset to a NetCDF file path."""
+
         if filePath is None:
             raise ValueError("File path to save model must be given")
         self.dataset.to_netcdf(filePath)
