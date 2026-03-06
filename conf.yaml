@@ -1,17 +1,3 @@
-# Input files
-path_to_regional_model: './Data/netcdf/alaska.nc' # has to be netcdf
-path_to_global_model: './Data/netcdf/glad-m25-vs-0.0-n4.nc' # has to be netcdf
-# path_to_global_model: './Data/semucb-2014-ucb-vs.nc'
-# path_to_ref_model: './Data/STW105.txt' # Reference 1D model
-path_to_ref_model: './Data/Model1D.dat' # Reference 1D model
-depth_file: './Data/spline.par'
-max_depth_regional_model: 400 # maximum depth in km of the regional model
-units_regional_depth: 'm'
-
-# Output files
-path_to_ascii_files: './Data/ascii' # path to output of the ascii files for intermediate step
-path_to_figures: './Data/figures'
-
 ## Parameters to create region
 reg_lmax: 239 # Lmax of regional model (in spherical harmonics)
 win_lmax: 60 # Maximum degree of expansion for windowing functions.
@@ -28,9 +14,3 @@ lat_max_mask: 71.55       # possible range: -90, 90 deg
 # Type of windowing
 # win_type: rectangular # spherical or rectangular
 win_type: spherical # spherical or rectangular
-
-# For later, implement which parameter, name etc etc
-
-
-# Parameters, to not change
-radius_in_meters: 6371000.
