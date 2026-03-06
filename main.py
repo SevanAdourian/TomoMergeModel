@@ -4,6 +4,7 @@ import multiprocessing
 
 from Dataset import Dataset
 from MergeMethods import MergeMethods
+from ConfigParams import ConfigParams
 
 
 def main() -> None:
@@ -20,8 +21,11 @@ def main() -> None:
         depthUnits="km",
         globalModel=global_mod,
     )
+    configParams = ConfigParams(
+        239, 60, 60, (197.5, 230.5), (52.65, 71.55), "spherical"
+    )
 
-    merger = MergeMethods(regional_mod, global_mod, "conf.yaml", "Vs", "vsv")
+    merger = MergeMethods(regional_mod, global_mod, configParams, "Vs", "vsv")
     print("Created merge methods instance")
 
     print("Merging global and regional")
@@ -30,7 +34,7 @@ def main() -> None:
     print("Displaying Merged Maps")
     for depth in merged_mod.getDataset().depth.values:
         merged_mod.plot_all_variables(
-            depth=depth, save_dir="plots_178_lmax", show=False
+            depth=depth
         )
     print("End of Merged Map Displays")
 

@@ -7,8 +7,8 @@ class ConfigParams:
         reg_lmax: int,
         win_lmax: int,
         win_eff_lmax: int,
-        lon_bounds: tuple[int],
-        lat_bounds: tuple[int],
+        lon_bounds: tuple[float],
+        lat_bounds: tuple[float],
         win_type: str,
     ):
         """Initialize configuration parameters for merging regional and global models."""
