@@ -1,5 +1,6 @@
 # imports here
 from Dataset import Dataset
+from ConfigParams import ConfigParams
 import multiprocessing
 import os
 import concurrent.futures
@@ -20,9 +21,9 @@ class MergeMethods:
         self,
         modelOne: Dataset,
         modelTwo: Dataset,
-        confFilePath,
-        regionalVariable,
-        globalVariable,
+        configParams: ConfigParams,
+        regionalVariable: str,
+        globalVariable: str,
     ):
 
         # input validation
@@ -51,17 +52,12 @@ class MergeMethods:
         self.merge_model = None
 
         # store config for merging variables
-        if confFilePath is None:
+        if configParams is None:
             raise ValueError(
-                "Must provide a configuration file containing merging variables"
+                "Must provide a ConfigParmas class containing merging variables"
             )
 
-        try:
-            self.conf = self.parseConfFile(confFilePath=confFilePath)
-        except ValueError as e:
-            raise ValueError(e)
-        except:
-            raise ValueError("Unable to parse config file")
+        self.conf = configParams
 
         if regionalVariable not in list(self.regional_model.getDataset().data_vars):
             raise ValueError(
@@ -73,44 +69,6 @@ class MergeMethods:
             )
         self.regionalVariable = regionalVariable
         self.globalVariable = globalVariable
-
-    def containsAllParams(self, conf):
-        params = [
-            "path_to_regional_model",
-            "path_to_global_model",
-            "depth_file",
-            "max_depth_regional_model",
-            "units_regional_depth",
-            "reg_lmax",
-            "win_lmax",
-            "win_eff_lmax",
-            "lon_min_mask",
-            "lon_max_mask",
-            "lat_min_mask",
-            "lat_max_mask",
-            "radius_in_meters",
-        ]
-        for param in params:
-            if param not in conf:
-                raise ValueError(f"Param not found: {param}")
-
-    def parseConfFile(self, confFilePath):
-        with open(confFilePath) as f:
-            conf = yaml.safe_load(f)
-        self.containsAllParams(conf)
-        depth_file = conf["depth_file"]
-        #  - Mask parameters
-        # Part of the regional model that will be preserved in the merging.
-        # Read in the depth file
-        conf["depth_knots_radius"] = np.array(self.regional_model.depths)
-        conf["depth_knots"] = (
-            conf["radius_in_meters"] / 1000.0 - conf["depth_knots_radius"]
-        )
-        conf["base_global_ascii_files"] = conf["path_to_ascii_files"] + "/global_"
-        conf["base_regional_ascii_files"] = conf["path_to_ascii_files"] + "/regional_"
-        conf["base_merged_ascii_files"] = conf["path_to_ascii_files"] + "/merged_"
-
-        return conf
 
     # getters and setters here
     def getRegionalModel(self) -> Dataset:
@@ -136,14 +94,11 @@ class MergeMethods:
             raise ValueError("setGlobalModel requires a GLOBAL Dataset")
         self.global_model = model
 
-    def setConf(self, confFilePath):
-        if confFilePath is None:
+    def setConf(self, configParams):
+        if configParams is None:
             raise ValueError("Must provide a configuration file for merging variables")
 
-        try:
-            self.conf = self.parseConfFile(confFilePath=confFilePath)
-        except:
-            raise ValueError("Unable to parse config file")
+        self.conf = configParams
 
     # merge function and helper functions here
     def convert_to_spherical_harmonics(self, zmesh, reg_lmax):
@@ -174,10 +129,10 @@ class MergeMethods:
         yvar = "latitude"
 
         # get the window bounds
-        lon_left = self.conf["lon_min_mask"]
-        lon_right = self.conf["lon_max_mask"]
-        lat_bottom = self.conf["lat_min_mask"]
-        lat_top = self.conf["lat_max_mask"]
+        lon_left = self.conf.lon_min_mask
+        lon_right = self.conf.lon_max_mask
+        lat_bottom = self.conf.lat_min_mask
+        lat_top = self.conf.lat_max_mask
 
         #  - Regional mask - set 1s inside region and 0s outside
         lon = reg_field[xvar].values
@@ -194,11 +149,11 @@ class MergeMethods:
             0,
         )
 
-        if self.conf["win_type"] == "spherical":  # spherical or rectangular'
+        if self.conf.win_type == "spherical":  # spherical or rectangular'
             #   - Construct spherical harmonic window function from mask
 
             reg_win = pyshtools.SHWindow.from_mask(
-                reg_zmesh_mask, lwin=self.conf["win_lmax"]
+                reg_zmesh_mask, lwin=self.conf.win_lmax
             )
             reg_win_clm = pyshtools.SHWindow.to_shcoeffs(reg_win, 0)
             reg_win_clm_pad = reg_win_clm.pad(
@@ -206,7 +161,7 @@ class MergeMethods:
             )  # Pad to match global clm
 
             reg_win_energy = (reg_win.to_shgrid(0).to_array()) ** 2
-            for i in range(1, self.conf["win_eff_lmax"]):
+            for i in range(1, self.conf.win_eff_lmax):
                 reg_win_energy += (reg_win.to_shgrid(i).to_array()) ** 2
             reg_win_energy_grid = pyshtools.SHGrid.from_array(reg_win_energy)
 
@@ -216,13 +171,13 @@ class MergeMethods:
 
             reg_win_energy_clm = pyshtools.SHGrid.expand(reg_win_energy_grid)
             reg_win_energy_clm = reg_win_energy_clm.pad(
-                self.conf["reg_lmax"]
+                self.conf.reg_lmax
             )  # Pad to match global clm
             reg_win_energy_grid = pyshtools.SHCoeffs.expand(
                 reg_win_energy_clm
             )  # Grid of mask
 
-        elif self.conf["win_type"] == "rectangular":  # spherical or rectangular
+        elif self.conf.win_type == "rectangular":  # spherical or rectangular
             # Construct rectangular window from mask (no smoothing at edges, sharp window)
             reg_win_grid = pyshtools.SHGrid.from_array(reg_zmesh_mask)
             reg_win_clm = pyshtools.SHGrid.expand(reg_win_grid)
@@ -260,7 +215,7 @@ class MergeMethods:
         )
 
         global_grid, global_clm = self.convert_to_spherical_harmonics(
-            zmesh_global, self.conf["reg_lmax"]
+            zmesh_global, self.conf.reg_lmax
         )
         # Plot map and spectra for global_clm
 
@@ -269,14 +224,14 @@ class MergeMethods:
                 global_grid, global_clm, "plots_178_lmax/global_240.png"
             )
 
-        if depth < self.conf["max_depth_regional_model"]:
+        if depth < max(list(self.regional_model.depths)):
             # Above where the regional model is defined in depth, actual merging
             # Reading in regional tomography model
             zmesh_regional = self.reshape_field(
                 self.regional_model.getDataset(), depth, self.regionalVariable
             )
             reg_grid, reg_clm = self.convert_to_spherical_harmonics(
-                zmesh_regional, self.conf["reg_lmax"]
+                zmesh_regional, self.conf.reg_lmax
             )
             # Doing mask windowing
             # reg_win_energy_grid = self.create_window(self.regional_model.getDataset().sel(depth=depth), global_clm)
@@ -328,7 +283,7 @@ class MergeMethods:
         return zmesh
 
     def merge(self):
-        depths = list(self.conf["depth_knots"])
+        depths = self.regional_model.depths
 
         # On Windows, process-based multiprocessing uses "spawn" which re-imports modules.
         # Using a process Pool with bound methods/self can also hang due to pickling.
