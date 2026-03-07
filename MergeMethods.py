@@ -230,7 +230,7 @@ class MergeMethods:
             zmesh_global, self.conf.reg_lmax
         )
 
-        if depth < max(list(self.regional_model.depths)):
+        if depth <= max(list(self.regional_model.depths)):
             # Above where the regional model is defined in depth, actual merging
             # Reading in regional tomography model
             zmesh_regional = self.reshape_field(
