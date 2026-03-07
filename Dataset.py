@@ -68,7 +68,7 @@ class Dataset:
 
         if self.modelType == Dataset.REGIONAL:  # interpolating the regional model
             target_lats, target_lons, target_depths = self.getInterpolationParameters(
-                depths, globalModel=globalModel
+                self.depths, globalModel=globalModel
             )
             self.dataset: xr.Dataset = Dataset.interpolate_model(
                 self.dataset, target_lats, target_lons, target_depths
@@ -96,10 +96,10 @@ class Dataset:
         spline_knots_reg = None
         if depths is not None:
             # get spline knots from the spline file
-            spline_knots_radius: np.ndarray = np.array(depths)
-            spline_knots: np.ndarray = (
-                Dataset.RADIUS_IN_METERS / 1000.0 - spline_knots_radius
-            )
+            spline_knots: np.ndarray = np.array(depths)
+            # spline_knots: np.ndarray = (
+            #     Dataset.RADIUS_IN_METERS / 1000.0 - spline_knots_radius
+            # )
 
             # Get the relevant splines for the regional model
             spline_knots_reg: np.ndarray = spline_knots[

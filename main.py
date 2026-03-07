@@ -8,7 +8,7 @@ from ConfigParams import ConfigParams
 
 
 def main() -> None:
-    depths = [6131]
+    depths = [30, 50]
     global_mod = Dataset(
         "Data/netcdf/glad-m25-vs-0.0-n4.nc",
         Dataset.GLOBAL,
