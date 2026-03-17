@@ -203,20 +203,63 @@ class MergeMethods:
 
         return reg_win_energy_grid
 
-    def apply_window(self, global_grid, global_clm, reg_grid, reg_win_energy_grid):
-        """Apply windowing mask to regional grid and merge with global model."""
+    # def apply_window(self, global_grid, global_clm, reg_grid, reg_win_energy_grid):
+    #     """Apply windowing mask to regional grid and merge with global model."""
 
-        # - Multiply grid by mask
-        reg_grid_masked = reg_grid * reg_win_energy_grid
-        reg_clm_masked = pyshtools.SHGrid.expand(reg_grid_masked)
+    #     # - Multiply grid by mask
+    #     reg_grid_masked = reg_grid * reg_win_energy_grid
+    #     reg_clm_masked = pyshtools.SHGrid.expand(reg_grid_masked)
 
-        # Sum regional spectrum inside box (masked) with global spectra outside box (unmasked)
-        summed_clm = reg_clm_masked + global_clm
+    #     # Global grid 
 
-        # Plot map and spectra for summed_clm
+    #     # Sum regional spectrum inside box (masked) with global spectra outside box (unmasked)
+    #     summed_clm = reg_clm_masked + global_clm
 
-        summed_grid = pyshtools.SHCoeffs.expand(summed_clm)
-        return summed_grid
+    #     # Plot map and spectra for summed_clm
+
+    #     summed_grid = pyshtools.SHCoeffs.expand(summed_clm)
+    #     return summed_grid
+
+    def apply_window(self, global_grid, global_clm, reg_grid, reg_win_grid,
+                     lcut=60, delta=5):
+        """
+        Merge global and regional models using:
+        - smooth spectral blending
+        - geographic windowing
+        """
+        
+        lmax = global_clm.lmax
+        
+        # Expand regional grid to SH and match lmax
+        reg_clm = reg_grid.expand().pad(lmax)
+        
+        # Convert coefficients to arrays
+        G = global_clm.to_array()
+        R = reg_clm.to_array()
+        
+        # EXPERIMENTAL! Trying to blend more smoothly the spectra so that there is no sharp transition
+        degrees = np.arange(lmax + 1)
+        w = 1 / (1 + np.exp(-(degrees - lcut) / delta))
+        
+        # Blend coefficients per degree
+        C = np.zeros_like(G)
+        
+        for l in range(lmax + 1):
+            C[:, l, :l+1] = (1 - w[l]) * G[:, l, :l+1] + w[l] * R[:, l, :l+1]
+            
+        # Convert blended coefficients to grid
+        blended_clm = pyshtools.SHCoeffs.from_array(C)
+        blended_grid = blended_clm.expand()
+        
+        # Spatial blending now in 2 sums, 1 for outside the region, 1 for the region.
+        merged_grid = global_grid * (1 - reg_win_grid) + blended_grid * reg_win_grid
+        merged_clm = merged_grid.expand().pad(lmax)
+        
+        # DEBUG
+        filename = f"merged_150km.png"
+        self.plot_map_and_spectra(merged_grid, merged_clm,filename)
+
+        return merged_grid
 
     def process_slice(self, depth):
         """Process and merge regional/global models at a single depth slice."""
@@ -247,6 +290,10 @@ class MergeMethods:
             summed_grid = self.apply_window(
                 global_grid, global_clm, reg_grid, reg_win_energy_grid
             )
+
+            # DEBUG
+            filename = f"global_{depth}km.png"
+            self.plot_map_and_spectra(global_grid, global_clm,filename)
         else:
             # Below where the regional model is defined, we just write the global model
             summed_grid = global_grid
