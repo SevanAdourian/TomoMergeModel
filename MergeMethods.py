@@ -31,17 +31,18 @@ class MergeMethods:
         if modelOne is None or modelTwo is None:
             raise ValueError("Null model(s) provided")
 
-        # checking to see that there is one regional and global model, and assigning them
+        # checking to see that there is one regional and one global model, and assigning them
+        model_one_type = modelOne.getModelType()
+        model_two_type = modelTwo.getModelType()
+
         regional_mod = None
         global_mod = None
-        if modelOne.getModelType() == Dataset.REGIONAL:
+        if model_one_type == Dataset.REGIONAL and model_two_type == Dataset.GLOBAL:
             regional_mod = modelOne
-        if modelOne.getModelType() == Dataset.GLOBAL:
-            global_mod = modelOne
-        if modelTwo.getModelType() == Dataset.REGIONAL:
-            regional_mod = modelTwo
-        if modelTwo.getModelType() == Dataset.GLOBAL:
             global_mod = modelTwo
+        elif model_one_type == Dataset.GLOBAL and model_two_type == Dataset.REGIONAL:
+            regional_mod = modelTwo
+            global_mod = modelOne
 
         # raise an error for two global or two regional models
         if regional_mod is None or global_mod is None:
@@ -117,12 +118,18 @@ class MergeMethods:
     def convert_to_spherical_harmonics(self, zmesh, reg_lmax):
         """Convert a 2D grid to spherical harmonics coefficients up to specified lmax."""
 
+        # Work on a copy to avoid mutating caller input
+        zmesh_clean = np.array(zmesh, copy=True)
+
         # Set nan values to the mean of the region
-        mask = np.isnan(zmesh)
-        zmesh[mask] = np.nanmean(np.nanmean(zmesh))
+        mask = np.isnan(zmesh_clean)
+        if np.any(mask):
+            if np.all(mask):
+                raise ValueError("Cannot convert all-NaN grid to spherical harmonics")
+            zmesh_clean[mask] = np.nanmean(zmesh_clean)
 
         # Create the grid and coefficients
-        grid = pyshtools.SHGrid.from_array(zmesh, grid="DH")
+        grid = pyshtools.SHGrid.from_array(zmesh_clean, grid="DH")
         clm = pyshtools.SHGrid.expand(grid)
         clm = clm.pad(reg_lmax)  # Pad to match global clm
 
@@ -171,9 +178,7 @@ class MergeMethods:
                 reg_zmesh_mask, lwin=self.conf.win_lmax
             )
             reg_win_clm = pyshtools.SHWindow.to_shcoeffs(reg_win, 0)
-            reg_win_clm_pad = reg_win_clm.pad(
-                global_clm.lmax
-            )  # Pad to match global clm
+            reg_win_clm.pad(global_clm.lmax)  # Pad to match global clm
 
             reg_win_energy = (reg_win.to_shgrid(0).to_array()) ** 2
             for i in range(1, self.conf.win_eff_lmax):
@@ -198,6 +203,10 @@ class MergeMethods:
             reg_win_clm = pyshtools.SHGrid.expand(reg_win_grid)
             reg_win_clm_pad = reg_win_clm.pad(global_clm.lmax)  # Pad to match reg clm
             reg_win_energy_grid = pyshtools.SHCoeffs.expand(reg_win_clm_pad)
+        else:
+            raise ValueError(
+                f"Unsupported win_type '{self.conf.win_type}'. Expected 'spherical' or 'rectangular'."
+            )
 
         reg_win_energy_grid.data = np.flipud(reg_win_energy_grid.data)
 
@@ -273,7 +282,14 @@ class MergeMethods:
             zmesh_global, self.conf.reg_lmax
         )
 
-        if depth <= max(list(self.regional_model.depths)):
+        regional_depths = np.asarray(self.regional_model.depths, dtype=float)
+        if regional_depths.size == 0:
+            raise ValueError("Regional model depths are empty")
+
+        regional_min_depth = float(np.min(regional_depths))
+        regional_max_depth = float(np.max(regional_depths))
+
+        if regional_min_depth <= float(depth) <= regional_max_depth:
             # Above where the regional model is defined in depth, actual merging
             # Reading in regional tomography model
             zmesh_regional = self.reshape_field(
@@ -285,7 +301,10 @@ class MergeMethods:
             # Doing mask windowing
             # reg_win_energy_grid = self.create_window(self.regional_model.getDataset().sel(depth=depth), global_clm)
             reg_win_energy_grid = self.create_window(
-                self.regional_model.getDataset().sel(depth=depth), global_clm
+                self.regional_model.getDataset().sel(
+                    depth=float(depth)
+                ),
+                global_clm,
             )
             summed_grid = self.apply_window(
                 global_grid, global_clm, reg_grid, reg_win_energy_grid
@@ -302,7 +321,7 @@ class MergeMethods:
 
     def write_model(self, depth, grid):
         """
-        Write out masked, merged model as 3 columns: lon, lat, dv
+        Write out merged model as an xarray DataArray with latitude, longitude, depth dimensions.
         """
         m_dv = grid.data
         lats = grid.lats()
@@ -350,7 +369,6 @@ class MergeMethods:
         merged_arrays = []
         for depth in depths:
             depth_val = float(depth)
-            print("depth - ", depth_val)
             merged_arrays.append(self.process_slice(depth_val))
 
         # Actually concatneation returns a DataArray, not a DataSet
