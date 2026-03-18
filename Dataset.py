@@ -51,7 +51,11 @@ class Dataset:
         self.filePath: str = filePath
         self.modelType: int = modelType
         self.depths: list[int] = depths
-        if depths == None and modelType == Dataset.REGIONAL:
+        if depths is None and modelType == Dataset.REGIONAL:
+            if globalModel is None:
+                raise ValueError(
+                    "globalModel must be provided for REGIONAL models when depths is None"
+                )
             self.depths = globalModel.getDataset().depth.values
 
         # open the file, reassign variable names, homogenize units, and convert longitude values
@@ -64,7 +68,8 @@ class Dataset:
 
         # assign names to varialbes and convert the units
         self.assign_names()
-        self.convert_units(depthUnits)
+        if depthUnits is not None:
+            self.convert_units(depthUnits)
 
         if self.modelType == Dataset.REGIONAL:  # interpolating the regional model
             target_lats, target_lons, target_depths = self.getInterpolationParameters(
@@ -147,6 +152,7 @@ class Dataset:
         self.modelType = modelType
 
     # interpolate a depth slice
+    @staticmethod
     def interpolate_slice(
         colats,
         lons,
@@ -267,16 +273,25 @@ class Dataset:
                 )
 
             # Update the data array for the variable in the new dataset
-            new_ds[varname] = xr.DataArray(
-                interpolated_data,
-                coords=[
-                    ("latitude", np.flipud(target_lats)),
-                    ("longitude", np.rad2deg(target_lons)),
-                    ("depth", target_depths),
-                ],
-            )
+            if target_depths is not None:
+                new_ds[varname] = xr.DataArray(
+                    interpolated_data,
+                    coords=[
+                        ("latitude", np.flipud(target_lats)),
+                        ("longitude", np.rad2deg(target_lons)),
+                        ("depth", target_depths),
+                    ],
+                )
+            else:
+                new_ds[varname] = xr.DataArray(
+                    interpolated_data,
+                    coords=[
+                        ("latitude", np.flipud(target_lats)),
+                        ("longitude", np.rad2deg(target_lons)),
+                    ],
+                )
 
-            new_ds = new_ds.sortby("latitude", ascending=True)
+        new_ds = new_ds.sortby("latitude", ascending=True)
 
         return new_ds
 
@@ -310,6 +325,7 @@ class Dataset:
             lon_0_360.append(lon_r)
 
         self.dataset = self.dataset.assign_coords(longitude=lon_0_360)
+        self.dataset = self.dataset.sortby("longitude", ascending=True)
 
     def assign_names(self):
         """Rename coordinate variables to standard latitude, longitude, and depth names."""
