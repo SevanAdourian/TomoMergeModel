@@ -13,14 +13,14 @@ def main() -> None:
     global_mod = Dataset(
         "Data/netcdf/glad-m25-vs-0.0-n4.nc",
         Dataset.GLOBAL,
-        depthUnits="km",
+        depth_units="km",
     )
     regional_mod = Dataset(
-        filePath="Data/netcdf/alaska.nc",
-        modelType=Dataset.REGIONAL,
+        file_path="Data/netcdf/alaska.nc",
+        model_type=Dataset.REGIONAL,
         depths=depths,
-        depthUnits="km",
-        globalModel=global_mod,
+        depth_units="km",
+        global_model=global_mod,
     )
     configParams = ConfigParams(
         239, 80, 80, (197.5, 230.5), (52.65, 71.55), "spherical"

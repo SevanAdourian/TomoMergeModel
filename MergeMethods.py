@@ -19,30 +19,30 @@ class MergeMethods:
     # constructors
     def __init__(
         self,
-        modelOne: Dataset,
-        modelTwo: Dataset,
-        configParams: ConfigParams,
-        regionalVariable: str,
-        globalVariable: str,
+        model_one: Dataset,
+        model_two: Dataset,
+        config_params: ConfigParams,
+        regional_variable: str,
+        global_variable: str,
     ):
         """Initialize with one regional and one global dataset, config parameters, and variable names."""
 
         # input validation
-        if modelOne is None or modelTwo is None:
+        if model_one is None or model_two is None:
             raise ValueError("Null model(s) provided")
 
         # checking to see that there is one regional and one global model, and assigning them
-        model_one_type = modelOne.getModelType()
-        model_two_type = modelTwo.getModelType()
+        model_one_type = model_one.getModelType()
+        model_two_type = model_two.getModelType()
 
         regional_mod = None
         global_mod = None
         if model_one_type == Dataset.REGIONAL and model_two_type == Dataset.GLOBAL:
-            regional_mod = modelOne
-            global_mod = modelTwo
+            regional_mod = model_one
+            global_mod = model_two
         elif model_one_type == Dataset.GLOBAL and model_two_type == Dataset.REGIONAL:
-            regional_mod = modelTwo
-            global_mod = modelOne
+            regional_mod = model_two
+            global_mod = model_one
 
         # raise an error for two global or two regional models
         if regional_mod is None or global_mod is None:
@@ -54,23 +54,23 @@ class MergeMethods:
         self.merge_model = None
 
         # store config for merging variables
-        if configParams is None:
+        if config_params is None:
             raise ValueError(
                 "Must provide a ConfigParmas class containing merging variables"
             )
 
-        self.conf = configParams
+        self.conf = config_params
 
-        if regionalVariable not in list(self.regional_model.getDataset().data_vars):
+        if regional_variable not in list(self.regional_model.getDataset().data_vars):
             raise ValueError(
-                f"Could not find regional variable {regionalVariable} in regional model"
+                f"Could not find regional variable {regional_variable} in regional model"
             )
-        if globalVariable not in list(self.global_model.getDataset().data_vars):
+        if global_variable not in list(self.global_model.getDataset().data_vars):
             raise ValueError(
-                f"Could not find global variable {globalVariable} in global model"
+                f"Could not find global variable {global_variable} in global model"
             )
-        self.regionalVariable = regionalVariable
-        self.globalVariable = globalVariable
+        self.regional_variable = regional_variable
+        self.global_variable = global_variable
 
     # getters and setters here
     def getRegionalModel(self) -> Dataset:
@@ -106,13 +106,13 @@ class MergeMethods:
             raise ValueError("setGlobalModel requires a GLOBAL Dataset")
         self.global_model = model
 
-    def setConf(self, configParams):
+    def setConf(self, config_params):
         """Set the configuration parameters after validation."""
 
-        if configParams is None:
+        if config_params is None:
             raise ValueError("Must provide a configuration file for merging variables")
 
-        self.conf = configParams
+        self.conf = config_params
 
     # merge function and helper functions here
     def convert_to_spherical_harmonics(self, zmesh, reg_lmax):
@@ -275,7 +275,7 @@ class MergeMethods:
 
         # Reading in global tomography model
         zmesh_global = self.reshape_field(
-            self.global_model.getDataset(), depth, self.globalVariable
+            self.global_model.getDataset(), depth, self.global_variable
         )
 
         global_grid, global_clm = self.convert_to_spherical_harmonics(
@@ -293,7 +293,7 @@ class MergeMethods:
             # Above where the regional model is defined in depth, actual merging
             # Reading in regional tomography model
             zmesh_regional = self.reshape_field(
-                self.regional_model.getDataset(), depth, self.regionalVariable
+                self.regional_model.getDataset(), depth, self.regional_variable
             )
             reg_grid, reg_clm = self.convert_to_spherical_harmonics(
                 zmesh_regional, self.conf.reg_lmax

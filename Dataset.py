@@ -23,57 +23,57 @@ class Dataset:
     # constructors
     def __init__(
         self,
-        filePath: str,
-        modelType: int,
-        depthUnits: str = None,
-        xrDataset: xr.Dataset = None,
-        globalModel: Dataset = None,
+        file_path: str,
+        model_type: int,
+        depth_units: str = None,
+        xr_dataset: xr.Dataset = None,
+        global_model: Dataset = None,
         depths: list[int] = None,
     ):
         """Initialize a dataset and normalize its coordinates and units."""
 
         # Input validation for file path
-        if filePath is None:
+        if file_path is None:
             raise ValueError("Need to pass in file path")
 
         # Input validation for model type
-        if modelType not in [Dataset.REGIONAL, Dataset.GLOBAL]:
+        if model_type not in [Dataset.REGIONAL, Dataset.GLOBAL]:
             raise ValueError("Model type must be Dataset.REGIONAL or Dataset.GLOBAL")
 
         # If model is regional, and a spline file and global model are given, depth units are needed
-        if modelType == Dataset.REGIONAL:
-            if depths is not None and globalModel is not None and depthUnits is None:
+        if model_type == Dataset.REGIONAL:
+            if depths is not None and global_model is not None and depth_units is None:
                 raise ValueError(
                     "If interpolation on depths is needed, depth units must be given"
                 )
 
         # assign the file path and model type, and parse file for other attributes
-        self.filePath: str = filePath
-        self.modelType: int = modelType
+        self.file_path: str = file_path
+        self.model_type: int = model_type
         self.depths: list[int] = depths
-        if depths is None and modelType == Dataset.REGIONAL:
-            if globalModel is None:
+        if depths is None and model_type == Dataset.REGIONAL:
+            if global_model is None:
                 raise ValueError(
                     "globalModel must be provided for REGIONAL models when depths is None"
                 )
-            self.depths = globalModel.getDataset().depth.values
+            self.depths = global_model.getDataset().depth.values
 
         # open the file, reassign variable names, homogenize units, and convert longitude values
-        if filePath == "":
-            if xrDataset is None:
+        if file_path == "":
+            if xr_dataset is None:
                 raise ValueError("If empty filePath is given, xrDataset must be given")
-            self.dataset: xr.Dataset = xrDataset
+            self.dataset: xr.Dataset = xr_dataset
         else:
-            self.dataset: xr.Dataset = xr.open_dataset(filePath)
+            self.dataset: xr.Dataset = xr.open_dataset(file_path)
 
         # assign names to varialbes and convert the units
         self.assign_names()
-        if depthUnits is not None:
-            self.convert_units(depthUnits)
+        if depth_units is not None:
+            self.convert_units(depth_units)
 
-        if self.modelType == Dataset.REGIONAL:  # interpolating the regional model
+        if self.model_type == Dataset.REGIONAL:  # interpolating the regional model
             target_lats, target_lons, target_depths = self.getInterpolationParameters(
-                self.depths, globalModel=globalModel
+                self.depths, global_model=global_model
             )
             self.dataset: xr.Dataset = Dataset.interpolate_model(
                 self.dataset, target_lats, target_lons, target_depths
@@ -84,12 +84,12 @@ class Dataset:
 
     # get the interpolation parameters based on the regional and global model
     def getInterpolationParameters(
-        self, depths: list[int], globalModel: Dataset
+        self, depths: list[int], global_model: Dataset
     ) -> tuple:
         """Return target latitude/longitude grids and optional depth knots."""
 
         # get target latitude and longitude
-        glo: xr.Dataset = globalModel.getDataset()
+        glo: xr.Dataset = global_model.getDataset()
         dlon_reg: xr.DataArray = glo.longitude[1] - glo.longitude[0]
         dlat_reg: xr.DataArray = glo.latitude[1] - glo.latitude[0]
 
@@ -121,7 +121,7 @@ class Dataset:
     def getFilePath(self) -> str:
         """Return the source file path for this dataset."""
 
-        return self.filePath
+        return self.file_path
 
     def setFilePath(self, path: str):
         """Set the dataset file path after validating it exists."""
@@ -132,7 +132,7 @@ class Dataset:
             raise ValueError("File path must be a string")
         if not os.path.exists(path):
             raise ValueError("Incorrect file path: file could not be found")
-        self.filePath = path
+        self.file_path = path
 
     def getDataset(self) -> xr.Dataset:
         """Return the underlying xarray dataset."""
@@ -142,14 +142,14 @@ class Dataset:
     def getModelType(self) -> int:
         """Return the model type constant for this dataset."""
 
-        return self.modelType
+        return self.model_type
 
-    def setModelType(self, modelType: int):
+    def setModelType(self, model_type: int):
         """Set the model type after validating allowed values."""
 
-        if modelType not in [Dataset.REGIONAL, Dataset.GLOBAL]:
+        if model_type not in [Dataset.REGIONAL, Dataset.GLOBAL]:
             raise ValueError("Model type must be Dataset.REGIONAL or Dataset.GLOBAL")
-        self.modelType = modelType
+        self.model_type = model_type
 
     # interpolate a depth slice
     @staticmethod
@@ -295,10 +295,10 @@ class Dataset:
 
         return new_ds
 
-    def convert_units(self, depthUnit: str = "m"):
+    def convert_units(self, depth_unit: str = "m"):
         """Convert depth and supported velocity fields between meter and kilometer units."""
 
-        if depthUnit == "m":
+        if depth_unit == "m":
             self.dataset = self.dataset.assign_coords(depth=self.dataset.depth / 1000.0)
             if "VSV" in self.dataset:
                 self.dataset = self.dataset.assign(
@@ -310,7 +310,7 @@ class Dataset:
                     VSH=lambda x: self.dataset.VSH / 1000.0
                 )
 
-        elif depthUnit != "km":
+        elif depth_unit != "km":
             raise ValueError("Depth Units must be m or km")
 
     def convert_longitude(self):
@@ -347,12 +347,12 @@ class Dataset:
             if not found:
                 raise ValueError(f"Could not detect variable name for {key}")
 
-    def save_model(self, filePath: str):
+    def save_model(self, file_path: str):
         """Save the current dataset to a NetCDF file path."""
 
-        if filePath is None:
+        if file_path is None:
             raise ValueError("File path to save model must be given")
-        self.dataset.to_netcdf(filePath)
+        self.dataset.to_netcdf(file_path)
 
     def plot_variable(
         self,
