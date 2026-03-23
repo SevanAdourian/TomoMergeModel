@@ -145,31 +145,8 @@ class MergeMethods:
         Normalise mask between 0 and 1 and then apply to the regional data
         """
 
-        reg_field = reg_field.sortby("longitude")
-
-        xvar = "longitude"
-        yvar = "latitude"
-
-        # get the window bounds
-        lon_left = self.conf.lon_min_mask
-        lon_right = self.conf.lon_max_mask
-        lat_bottom = self.conf.lat_min_mask
-        lat_top = self.conf.lat_max_mask
-
-        #  - Regional mask - set 1s inside region and 0s outside
-        lon = reg_field[xvar].values
-        lat = reg_field[yvar].values
-
-        lon2d, lat2d = np.meshgrid(lon, lat)
-
-        reg_zmesh_mask = np.where(
-            (lon2d >= lon_left)
-            & (lon2d <= lon_right)
-            & (lat2d >= lat_bottom)
-            & (lat2d <= lat_top),
-            1,
-            0,
-        )
+        reg_zmesh_mask = self.build_binary_mask(reg_field=reg_field.copy(), mask_mode="continent")
+        pdb.set_trace()
 
         if self.conf.win_type == "spherical":  # spherical or rectangular'
             #   - Construct spherical harmonic window function from mask
@@ -211,6 +188,72 @@ class MergeMethods:
         reg_win_energy_grid.data = np.flipud(reg_win_energy_grid.data)
 
         return reg_win_energy_grid
+
+    def build_binary_mask(self, reg_field, mask_mode="bounds"):
+        """Build a geographic binary mask for the provided regional field."""
+
+        reg_field = reg_field.sortby("longitude")
+        lon = reg_field["longitude"].values
+        lat = reg_field["latitude"].values
+        lon2d, lat2d = np.meshgrid(lon, lat)
+
+        mode = (mask_mode or "bounds").lower()
+        if mode == "bounds":
+            mask = np.where(
+                (lon2d >= self.conf.lon_min_mask)
+                & (lon2d <= self.conf.lon_max_mask)
+                & (lat2d >= self.conf.lat_min_mask)
+                & (lat2d <= self.conf.lat_max_mask),
+                1,
+                0,
+            )
+            return mask.astype(np.uint8)
+
+        if mode == "continent":
+            from cartopy.io import shapereader
+            from shapely.geometry import Point
+            from shapely.ops import unary_union
+            from shapely.prepared import prep
+
+            resolution = getattr(self.conf, "mask_resolution", "110m")
+            target = getattr(self.conf, "mask_target", "land").lower()
+            continents = getattr(self.conf, "mask_continents", []) or []
+
+            shp = shapereader.natural_earth(
+                resolution=resolution,
+                category="cultural",
+                name="admin_0_countries",
+            )
+            reader = shapereader.Reader(shp)
+            selected = set(c.lower() for c in continents) if continents else None
+            geoms = []
+            for rec in reader.records():
+                cont = (rec.attributes.get("CONTINENT") or "").lower()
+                if selected is None or cont in selected:
+                    geoms.append(rec.geometry)
+
+            if not geoms:
+                raise ValueError("No geometries found for requested continents")
+
+            geom = prep(unary_union(geoms))
+            lon180 = ((lon2d + 180.0) % 360.0) - 180.0
+            inside = np.fromiter(
+                (
+                    geom.contains(Point(float(x), float(y)))
+                    for x, y in zip(lon180.ravel(), lat2d.ravel())
+                ),
+                dtype=bool,
+                count=lon180.size,
+            ).reshape(lon2d.shape)
+
+            if target == "ocean":
+                inside = ~inside
+
+            return inside.astype(np.uint8)
+
+        raise ValueError(
+            f"Unsupported mask_mode '{mode}'. Expected 'bounds' or 'continent'."
+        )
 
     # def apply_window(self, global_grid, global_clm, reg_grid, reg_win_energy_grid):
     #     """Apply windowing mask to regional grid and merge with global model."""
