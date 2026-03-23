@@ -145,7 +145,7 @@ class MergeMethods:
         Normalise mask between 0 and 1 and then apply to the regional data
         """
 
-        reg_zmesh_mask = self.build_binary_mask(reg_field=reg_field.copy(), mask_mode="continent")
+        reg_zmesh_mask = self.build_binary_mask(reg_field=reg_field.copy(), mask_mode="bounds")
         pdb.set_trace()
 
         if self.conf.win_type == "spherical":  # spherical or rectangular'
@@ -158,7 +158,7 @@ class MergeMethods:
             reg_win_clm.pad(global_clm.lmax)  # Pad to match global clm
 
             reg_win_energy = (reg_win.to_shgrid(0).to_array()) ** 2
-            for i in range(1, self.conf.win_eff_lmax):
+            for i in range(1, self.conf.win_lmax):
                 reg_win_energy += (reg_win.to_shgrid(i).to_array()) ** 2
             reg_win_energy_grid = pyshtools.SHGrid.from_array(reg_win_energy)
 
@@ -423,7 +423,7 @@ class MergeMethods:
         # self.merge_model = self.merge_model.assign_coords(latitude=self.merge_model.latitude[::-1]).sortby("latitude")
         # self.merge_model = self.merge_model.assign_coords(longitude=((self.merge_model.longitude + 180) % 360)).sortby("longitude")
         self.merge_model = Dataset(
-            "", Dataset.GLOBAL, xrDataset=self.merge_model, depthUnits="km"
+            "", Dataset.GLOBAL, xr_dataset=self.merge_model, depth_units="km"
         )
 
         return self.merge_model

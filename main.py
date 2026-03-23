@@ -23,7 +23,7 @@ def main() -> None:
         global_model=global_mod,
     )
     configParams = ConfigParams(
-        239, 80, 80, (197.5, 230.5), (52.65, 71.55), "spherical"
+        239, 80, (197.5, 230.5), (52.65, 71.55), "spherical"
     )
 
     merger = MergeMethods(regional_mod, global_mod, configParams, "Vs", "vsv")

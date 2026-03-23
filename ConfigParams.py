@@ -6,7 +6,7 @@ class ConfigParams:
         self,
         reg_lmax: int,
         win_lmax: int,
-        win_eff_lmax: int,
+        # win_eff_lmax: int,
         lon_bounds: tuple[float, float],
         lat_bounds: tuple[float, float],
         win_type: str,
@@ -21,12 +21,12 @@ class ConfigParams:
             self.win_lmax = win_lmax
         else:
             raise ValueError("win_lmax must be non-negative")
-        if win_eff_lmax < 1:
-            raise ValueError("win_eff_lmax must be at least 1")
-        elif win_eff_lmax > win_lmax and win_type == "spherical":
-            raise ValueError("When using spherical window, win_eff_lmax must be at most win_lmax")
-        else:
-            self.win_eff_lmax = win_eff_lmax
+        # if win_eff_lmax < 1:
+        #     raise ValueError("win_eff_lmax must be at least 1")
+        # elif win_eff_lmax > win_lmax and win_type == "spherical":
+        #     raise ValueError("When using spherical window, win_eff_lmax must be at most win_lmax")
+        # else:
+        #     self.win_eff_lmax = win_eff_lmax
         if len(lon_bounds) != 2:
             raise ValueError("lon_bounds should only have 2 values")
         elif lon_bounds[0] > lon_bounds[1]:
