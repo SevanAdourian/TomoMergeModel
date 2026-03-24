@@ -145,7 +145,10 @@ class MergeMethods:
         Normalise mask between 0 and 1 and then apply to the regional data
         """
 
-        reg_zmesh_mask = self.build_binary_mask(reg_field=reg_field.copy(), mask_mode="bounds")
+        reg_zmesh_mask = self.build_binary_mask(
+            reg_field=reg_field.copy(),
+            mask_mode=getattr(self.conf, "mask_mode", "bounds"),
+        )
         pdb.set_trace()
 
         if self.conf.win_type == "spherical":  # spherical or rectangular'
