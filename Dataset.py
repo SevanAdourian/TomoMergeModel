@@ -1,18 +1,11 @@
 from __future__ import annotations
 
-# imports here
-import os, yaml
+import os
 import numpy as np
-import pyshtools
-import sys
 import matplotlib.pyplot as plt
-import pandas as pd
-import netCDF4 as nc
 import xarray as xr
-import pdb
 import cartopy.crs as ccrs
-from Model1D import Model1D
-from scipy.interpolate import RectSphereBivariateSpline, RectBivariateSpline
+from scipy.interpolate import RectSphereBivariateSpline
 
 
 class Dataset:
@@ -20,7 +13,6 @@ class Dataset:
     GLOBAL = 1  # Global Dataset object
     RADIUS_IN_METERS = 6371000
 
-    # constructors
     def __init__(
         self,
         file_path: str,
@@ -58,7 +50,7 @@ class Dataset:
                 )
             self.depths = global_model.getDataset().depth.values
 
-        # open the file, reassign variable names, homogenize units, and convert longitude values
+        # Load from an existing xr.Dataset or open from file
         if file_path == "":
             if xr_dataset is None:
                 raise ValueError("If empty filePath is given, xrDataset must be given")
@@ -66,12 +58,12 @@ class Dataset:
         else:
             self.dataset: xr.Dataset = xr.open_dataset(file_path)
 
-        # assign names to varialbes and convert the units
+        # Normalize coordinate names, units, and longitude convention
         self.assign_names()
         if depth_units is not None:
             self.convert_units(depth_units)
 
-        if self.model_type == Dataset.REGIONAL:  # interpolating the regional model
+        if self.model_type == Dataset.REGIONAL:
             target_lats, target_lons, target_depths = self.getInterpolationParameters(
                 self.depths, global_model=global_model
             )
@@ -82,7 +74,6 @@ class Dataset:
         # convert the longitude
         self.convert_longitude()
 
-    # get the interpolation parameters based on the regional and global model
     def getInterpolationParameters(
         self, depths: list[int], global_model: Dataset
     ) -> tuple:
@@ -100,13 +91,9 @@ class Dataset:
 
         spline_knots_reg = None
         if depths is not None:
-            # get spline knots from the spline file
             spline_knots: np.ndarray = np.array(depths)
-            # spline_knots: np.ndarray = (
-            #     Dataset.RADIUS_IN_METERS / 1000.0 - spline_knots_radius
-            # )
 
-            # Get the relevant splines for the regional model
+            # Filter to depths that fall within the regional model's depth range
             spline_knots_reg: np.ndarray = spline_knots[
                 np.where(
                     np.logical_and(
@@ -117,7 +104,6 @@ class Dataset:
             ]
         return (lat_reg, lon_reg, spline_knots_reg)
 
-    # getters and setters here
     def getFilePath(self) -> str:
         """Return the source file path for this dataset."""
 
@@ -151,7 +137,6 @@ class Dataset:
             raise ValueError("Model type must be Dataset.REGIONAL or Dataset.GLOBAL")
         self.model_type = model_type
 
-    # interpolate a depth slice
     @staticmethod
     def interpolate_slice(
         colats,
@@ -181,7 +166,6 @@ class Dataset:
         return interpolated_slice
 
     @staticmethod
-    # Interpolate all depth slices
     def interpolate_model(
         ds: xr.Dataset,
         target_lats: np.ndarray,
@@ -190,23 +174,21 @@ class Dataset:
     ):
         """Interpolate all variables to target latitude/longitude and optional depth grids."""
 
-        # Create a new dataset for interpolated values
         new_ds: xr.Dataset = xr.Dataset()
 
-        # Decreasing latitude for increasing colatitudes
+        # Sort descending in latitude so colatitudes are ascending
         ds: xr.Dataset = ds.sortby("latitude", ascending=False)
 
-        # Interpolate over depth using builtin interp function
+        # Interpolate to target depths (if provided) before spatial interpolation
         if target_depths is not None:
             tmp_ds: xr.Dataset = ds.interp(depth=target_depths, method="linear")
         else:
             tmp_ds: xr.Dataset = ds.copy()
 
-        # Get the latitudes, longitudes, and depths of the variable
         lats: np.ndarray = tmp_ds.coords["latitude"].values
         lons: np.ndarray = tmp_ds.coords["longitude"].values
 
-        # Convert to colatitude and radians
+        # Convert lat/lon to colatitude (radians) required by RectSphereBivariateSpline
         colats: np.ndarray = np.pi / 2 - np.deg2rad(lats)
         lons: np.ndarray = np.deg2rad(lons)
 
@@ -219,7 +201,7 @@ class Dataset:
         if target_depths is not None:
             ndepths: int = len(target_depths)
 
-        # Create mask to interpolate on, rest will be filled with NaNs
+        # Build lat/lon masks so points outside the regional extent stay NaN
         min_colat = np.min(colats)
         max_colat = np.max(colats)
         min_lon = np.min(lons)
@@ -232,17 +214,12 @@ class Dataset:
 
         # Loop over each variable in the dataset
         for varname in tmp_ds.data_vars:
-            # Interpolate the variable at the target latitudes and longitudes
             shape = [nlat, nlon, ndepths] if ndepths is not None else [nlat, nlon]
             interpolated_data = np.full(shape, np.nan)
 
-            # Loop over depths if there are depths, otherwise just do it for the one layer
             if ndepths is not None:
                 for i_d, depth in enumerate(tmp_ds.depth):
-                    # Get the data array for the variable
                     var_data = tmp_ds[varname].isel(depth=i_d).values
-
-                    # Create an interpolation function for the variable at given depth
                     interpolated_data[:, :, i_d] = Dataset.interpolate_slice(
                         colats,
                         lons,
@@ -272,7 +249,6 @@ class Dataset:
                     lon_indices,
                 )
 
-            # Update the data array for the variable in the new dataset
             if target_depths is not None:
                 new_ds[varname] = xr.DataArray(
                     interpolated_data,
@@ -296,34 +272,31 @@ class Dataset:
         return new_ds
 
     def convert_units(self, depth_unit: str = "m"):
-        """Convert depth and supported velocity fields between meter and kilometer units."""
+        """Convert depth coordinates and velocity fields from meters to kilometers.
 
+        Args:
+            depth_unit: The unit of the source data. Use ``'m'`` to trigger
+                conversion to km; ``'km'`` is a no-op. Any other value raises.
+        """
         if depth_unit == "m":
             self.dataset = self.dataset.assign_coords(depth=self.dataset.depth / 1000.0)
             if "VSV" in self.dataset:
                 self.dataset = self.dataset.assign(
                     VSV=lambda x: self.dataset.VSV / 1000.0
                 )
-
             if "VSH" in self.dataset:
                 self.dataset = self.dataset.assign(
                     VSH=lambda x: self.dataset.VSH / 1000.0
                 )
-
         elif depth_unit != "km":
-            raise ValueError("Depth Units must be m or km")
+            raise ValueError("depth_unit must be 'm' or 'km'")
 
     def convert_longitude(self):
-        """Convert longitude values from [-180, 180] style to [0, 360]."""
-
-        lon_0_360 = []
-        for lon in self.dataset.longitude.to_numpy():
-            if lon < 0:
-                lon_r = lon + 360.0
-            else:
-                lon_r = lon
-            lon_0_360.append(lon_r)
-
+        """Remap longitude coordinates from [-180, 180] to [0, 360] and sort."""
+        lon_0_360 = [
+            lon + 360.0 if lon < 0 else lon
+            for lon in self.dataset.longitude.to_numpy()
+        ]
         self.dataset = self.dataset.assign_coords(longitude=lon_0_360)
         self.dataset = self.dataset.sortby("longitude", ascending=True)
 
@@ -366,19 +339,30 @@ class Dataset:
         show_colorbar=True,
         figsize=(10, 5),
     ):
-        """
-        Plot one variable from the dataset on a PlateCarree map.
-        - varname: name of a data variable in the xr.Dataset
-        - depth: either an index (int) or a value (float) to pick nearest depth for 3D variables.
-                 If None and variable has a depth dimension, the first level is used.
-        Returns (fig, ax).
+        """Plot a single data variable on a global PlateCarree map.
+
+        Args:
+            varname: Name of the variable in the dataset to plot.
+            depth: Depth level to visualize for 3-D variables. Accepts an
+                integer index, a float value (nearest depth is selected), or
+                ``None`` to use the first depth level.
+            ax: Existing matplotlib axes to draw on. A new figure is created
+                when ``None``.
+            cmap: Matplotlib colormap name.
+            vmin: Lower bound for the color scale.
+            vmax: Upper bound for the color scale.
+            title: Axes title. Defaults to ``"<varname> (depth=<depth>)"``.
+            show_colorbar: Whether to attach a colorbar to the plot.
+            figsize: Figure size passed to ``plt.subplots``.
+
+        Returns:
+            Tuple of ``(fig, ax)``.
         """
         if varname not in self.dataset:
             raise ValueError(f"{varname} not found in dataset")
 
         da = self.dataset[varname]
 
-        # handle depth dimension if present
         if "depth" in da.dims:
             if depth is None:
                 da_sel = da.isel(depth=0)
@@ -387,7 +371,7 @@ class Dataset:
                 da_sel = da.isel(depth=int(depth))
                 depth_label = str(da.depth.values[int(depth)])
             else:
-                # assume numeric value -> find nearest depth
+                # Nearest-depth selection for float values
                 idx = int(np.argmin(np.abs(da.depth.values - float(depth))))
                 da_sel = da.isel(depth=idx)
                 depth_label = str(da.depth.values[idx])
@@ -401,7 +385,6 @@ class Dataset:
         lons = da_sel["longitude"].values
         data = da_sel.values
 
-        # prepare figure / axis
         created_fig = False
         if ax is None:
             fig, ax = plt.subplots(
@@ -411,8 +394,6 @@ class Dataset:
         else:
             fig = ax.figure
 
-        # pcolormesh expects 2D lon/lat grids or 1D coords with matching shapes
-        # Use transform to PlateCarree for proper georeferencing
         pcm = ax.pcolormesh(
             lons,
             lats,
@@ -455,12 +436,21 @@ class Dataset:
         figsize=(10, 5),
         show=True,
     ):
-        """
-        Iterate through all data variables in the dataset and plot each.
-        - depth: forwarded to plot_variable for 3D variables
-        - save_dir: if provided, PNG files are written to this directory (created if needed)
-        - show: whether to call plt.show() after each plot (useful to turn off when saving many files)
-        Returns list of (varname, filepath_or_None).
+        """Plot every data variable in the dataset at a given depth.
+
+        Args:
+            depth: Depth level forwarded to :meth:`plot_variable`.
+            save_dir: Directory to write PNG files into. Created automatically
+                if it does not exist. When ``None``, figures are not saved.
+            cmap: Matplotlib colormap name applied to all plots.
+            vmin: Shared lower bound for the color scale.
+            vmax: Shared upper bound for the color scale.
+            figsize: Figure size passed to each :meth:`plot_variable` call.
+            show: Call ``plt.show()`` after each plot. Set to ``False`` when
+                batch-saving to avoid blocking.
+
+        Returns:
+            List of ``(varname, filepath_or_None)`` tuples.
         """
         results = []
         if save_dir is not None:

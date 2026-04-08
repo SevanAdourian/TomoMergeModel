@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import multiprocessing
 import cmcrameri.cm as cm
 
 from Dataset import Dataset
@@ -9,6 +8,14 @@ from ConfigParams import ConfigParams
 
 
 def main() -> None:
+    """Run a sequential two-region merge (Alaska then Japan) and display the results.
+
+    Workflow:
+    1. Load the global GLAD-M25 model.
+    2. Merge the Alaska regional model into the global model at the target depths.
+    3. Merge the Japan regional model into the already-merged Alaska result.
+    4. Plot all variables of the final merged model at each depth.
+    """
     depths = [150]
     global_mod = Dataset(
         "Data/netcdf/glad-m25-vs-0.0-n4.nc",
@@ -27,9 +34,7 @@ def main() -> None:
     )
 
     merger = MergeMethods(reg_alaska, global_mod, configParams, "Vs", "vsv")
-    print("Created merge methods instance")
-
-    print("Merging global and regional")
+    print("Merging Alaska regional model into global...")
     merged_mod = merger.merge()
 
     reg_japan = Dataset(
@@ -44,19 +49,17 @@ def main() -> None:
     )
 
     merger = MergeMethods(reg_japan, merged_mod, configParams, "Vs", "vsv")
-    print("Created merge methods instance")
-
-    print("Merging global and regional")
+    print("Merging Japan regional model into Alaska-merged global...")
     merged_mod = merger.merge()
 
-    print("Displaying Merged Maps")
+    print("Displaying merged maps...")
     cmap_seismic = cm.vik
     for depth in merged_mod.getDataset().depth.values:
         merged_mod.plot_all_variables(
             depth=depth,
             cmap=cmap_seismic
         )
-    print("End of Merged Map Displays")
+    print("Done.")
 
 
 if __name__ == "__main__":

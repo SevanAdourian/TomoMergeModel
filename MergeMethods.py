@@ -1,22 +1,13 @@
-# imports here
 from Dataset import Dataset
 from ConfigParams import ConfigParams
-import multiprocessing
-import os
 import concurrent.futures
-import time
-import sys
-import yaml
-import pyshtools
 import numpy as np
-import pandas as pd
+import pyshtools
 import xarray as xr
-import pdb
 import matplotlib.pyplot as plt
 
 
 class MergeMethods:
-    # constructors
     def __init__(
         self,
         model_one: Dataset,
@@ -48,12 +39,10 @@ class MergeMethods:
         if regional_mod is None or global_mod is None:
             raise ValueError("Constructor requires one REGIONAL and one GLOBAL Dataset")
 
-        # store the models
         self.regional_model = regional_mod
         self.global_model = global_mod
         self.merge_model = None
 
-        # store config for merging variables
         if config_params is None:
             raise ValueError(
                 "Must provide a ConfigParmas class containing merging variables"
@@ -72,7 +61,6 @@ class MergeMethods:
         self.regional_variable = regional_variable
         self.global_variable = global_variable
 
-    # getters and setters here
     def getRegionalModel(self) -> Dataset:
         """Return the regional model dataset."""
 
@@ -139,10 +127,22 @@ class MergeMethods:
         return grid, clm
 
     def create_window(self, reg_field, global_clm):
-        """
-        Create a mask of spherical harmonic windows using the range given above
-        Sharpness of the edges of the mask are controlled by reg_nwin
-        Normalise mask between 0 and 1 and then apply to the regional data
+        """Build a normalized spherical harmonic window function over the regional area.
+
+        Constructs a binary geographic mask, then lifts it into either a
+        multi-taper spherical harmonic window (``win_type='spherical'``) or a
+        sharp rectangular window (``win_type='rectangular'``). The result is a
+        normalised grid (values in [0, 1]) suitable for spatially blending the
+        regional and global models.
+
+        Args:
+            reg_field: Regional dataset slice (xr.Dataset) used to define
+                the spatial extent of the window.
+            global_clm: Global SHCoeffs object whose ``lmax`` is used to pad
+                the window coefficients.
+
+        Returns:
+            pyshtools SHGrid representing the normalized window.
         """
 
         reg_zmesh_mask = self.build_binary_mask(
@@ -151,37 +151,32 @@ class MergeMethods:
         )
         # pdb.set_trace()
 
-        if self.conf.win_type == "spherical":  # spherical or rectangular'
-            #   - Construct spherical harmonic window function from mask
-
+        if self.conf.win_type == "spherical":
+            # Multi-taper spherical harmonic window — smooth, tapered edges
             reg_win = pyshtools.SHWindow.from_mask(
                 reg_zmesh_mask, lwin=self.conf.win_lmax
             )
             reg_win_clm = pyshtools.SHWindow.to_shcoeffs(reg_win, 0)
-            reg_win_clm.pad(global_clm.lmax)  # Pad to match global clm
+            reg_win_clm.pad(global_clm.lmax)
 
             reg_win_energy = (reg_win.to_shgrid(0).to_array()) ** 2
             for i in range(1, self.conf.win_lmax):
                 reg_win_energy += (reg_win.to_shgrid(i).to_array()) ** 2
             reg_win_energy_grid = pyshtools.SHGrid.from_array(reg_win_energy)
 
-            #  - Normalise window (0 to 1) so that we can mask outside and inside
+            # Normalise to [0, 1] for use as a blend weight
             valmax = np.amax(reg_win_energy_grid.data)
             reg_win_energy_grid = reg_win_energy_grid / valmax
 
             reg_win_energy_clm = pyshtools.SHGrid.expand(reg_win_energy_grid)
-            reg_win_energy_clm = reg_win_energy_clm.pad(
-                self.conf.reg_lmax
-            )  # Pad to match global clm
-            reg_win_energy_grid = pyshtools.SHCoeffs.expand(
-                reg_win_energy_clm
-            )  # Grid of mask
+            reg_win_energy_clm = reg_win_energy_clm.pad(self.conf.reg_lmax)
+            reg_win_energy_grid = pyshtools.SHCoeffs.expand(reg_win_energy_clm)
 
-        elif self.conf.win_type == "rectangular":  # spherical or rectangular
-            # Construct rectangular window from mask (no smoothing at edges, sharp window)
+        elif self.conf.win_type == "rectangular":
+            # Sharp binary window — no edge smoothing
             reg_win_grid = pyshtools.SHGrid.from_array(reg_zmesh_mask)
             reg_win_clm = pyshtools.SHGrid.expand(reg_win_grid)
-            reg_win_clm_pad = reg_win_clm.pad(global_clm.lmax)  # Pad to match reg clm
+            reg_win_clm_pad = reg_win_clm.pad(global_clm.lmax)
             reg_win_energy_grid = pyshtools.SHCoeffs.expand(reg_win_clm_pad)
         else:
             raise ValueError(
@@ -277,47 +272,74 @@ class MergeMethods:
 
     def apply_window(self, global_grid, global_clm, reg_grid, reg_win_grid,
                      lcut=60, delta=5):
-        """
-        Merge global and regional models using:
-        - smooth spectral blending
-        - geographic windowing
+        """Merge global and regional models via spectral blending and geographic windowing.
+
+        Performs a two-stage merge:
+        1. **Spectral blending** — regional and global SH coefficients are
+           mixed per degree using a logistic weight centred at ``lcut``,
+           favouring global structure at long wavelengths and regional detail
+           at short wavelengths.
+        2. **Spatial blending** — the spectrally blended grid is composited
+           with the original global grid using the normalised window
+           ``reg_win_grid`` as a per-pixel blend weight.
+
+        Args:
+            global_grid: Global model as a pyshtools SHGrid.
+            global_clm: Global model SH coefficients (pyshtools SHCoeffs).
+            reg_grid: Regional model as a pyshtools SHGrid.
+            reg_win_grid: Normalised window grid (values in [0, 1]) defining
+                the regional footprint; output of :meth:`create_window`.
+            lcut: Spherical harmonic degree at which the logistic blend
+                transitions from global-dominated to regional-dominated.
+            delta: Steepness of the logistic transition (lower = sharper).
+
+        Returns:
+            Merged model as a pyshtools SHGrid.
         """
         
         lmax = global_clm.lmax
-        
-        # Expand regional grid to SH and match lmax
+
+        # Expand regional grid to SH coefficients and match lmax to global
         reg_clm = reg_grid.expand().pad(lmax)
-        
-        # Convert coefficients to arrays
+
         G = global_clm.to_array()
         R = reg_clm.to_array()
-        
-        # EXPERIMENTAL! Trying to blend more smoothly the spectra so that there is no sharp transition
+
+        # Logistic weight: favours global at low degrees, regional at high degrees
         degrees = np.arange(lmax + 1)
         w = 1 / (1 + np.exp(-(degrees - lcut) / delta))
-        
-        # Blend coefficients per degree
+
+        # Blend SH coefficients per degree
         C = np.zeros_like(G)
-        
         for l in range(lmax + 1):
             C[:, l, :l+1] = (1 - w[l]) * G[:, l, :l+1] + w[l] * R[:, l, :l+1]
-            
-        # Convert blended coefficients to grid
+
         blended_clm = pyshtools.SHCoeffs.from_array(C)
         blended_grid = blended_clm.expand()
-        
-        # Spatial blending now in 2 sums, 1 for outside the region, 1 for the region.
+
+        # Composite: global outside the window, blended inside
         merged_grid = global_grid * (1 - reg_win_grid) + blended_grid * reg_win_grid
         merged_clm = merged_grid.expand().pad(lmax)
-        
-        # DEBUG
+
+        # Debug: save merged map for visual inspection
         filename = f"merged_150km.png"
-        self.plot_map_and_spectra(merged_grid, merged_clm,filename)
+        self.plot_map_and_spectra(merged_grid, merged_clm, filename)
 
         return merged_grid
 
     def process_slice(self, depth):
-        """Process and merge regional/global models at a single depth slice."""
+        """Process and merge regional and global models at a single depth slice.
+
+        When the requested depth falls within the regional model's depth range,
+        the regional field is windowed and blended into the global model.
+        Outside that range, the global model is returned unchanged.
+
+        Args:
+            depth: Depth value (km) to process.
+
+        Returns:
+            xr.DataArray with dimensions ``(latitude, longitude, depth)``.
+        """
 
         # Reading in global tomography model
         zmesh_global = self.reshape_field(
@@ -336,16 +358,13 @@ class MergeMethods:
         regional_max_depth = float(np.max(regional_depths))
 
         if regional_min_depth <= float(depth) <= regional_max_depth:
-            # Above where the regional model is defined in depth, actual merging
-            # Reading in regional tomography model
+            # Depth is within regional coverage — perform the merge
             zmesh_regional = self.reshape_field(
                 self.regional_model.getDataset(), depth, self.regional_variable
             )
             reg_grid, reg_clm = self.convert_to_spherical_harmonics(
                 zmesh_regional, self.conf.reg_lmax
             )
-            # Doing mask windowing
-            # reg_win_energy_grid = self.create_window(self.regional_model.getDataset().sel(depth=depth), global_clm)
             reg_win_energy_grid = self.create_window(
                 self.regional_model.getDataset().sel(
                     depth=float(depth)
@@ -356,11 +375,11 @@ class MergeMethods:
                 global_grid, global_clm, reg_grid, reg_win_energy_grid
             )
 
-            # DEBUG
+            # Debug: save global-only map for comparison
             filename = f"global_{depth}km.png"
-            self.plot_map_and_spectra(global_grid, global_clm,filename)
+            self.plot_map_and_spectra(global_grid, global_clm, filename)
         else:
-            # Below where the regional model is defined, we just write the global model
+            # Depth is below regional coverage — pass through global model unchanged
             summed_grid = global_grid
 
         return self.write_model(depth=depth, grid=summed_grid)
@@ -405,7 +424,15 @@ class MergeMethods:
         return zmesh.values
 
     def merge(self):
-        """Merge regional and global models across all depth slices and return merged Dataset."""
+        """Merge regional and global models across all depth slices.
+
+        Iterates over every depth in the regional model, calling
+        :meth:`process_slice` for each, then concatenates the results into a
+        single xr.Dataset.
+
+        Returns:
+            Merged model wrapped in a :class:`Dataset` instance (GLOBAL type).
+        """
 
         depths = self.regional_model.depths
 
@@ -417,14 +444,11 @@ class MergeMethods:
             depth_val = float(depth)
             merged_arrays.append(self.process_slice(depth_val))
 
-        # Actually concatneation returns a DataArray, not a DataSet
+        # concat returns a DataArray; convert to Dataset immediately
         merged_all_arrays = xr.concat(merged_arrays, dim="depth")
         self.merge_model = merged_all_arrays.to_dataset(name=self.global_variable)
 
-        # Needed for multiprocessing
         self.merge_model = self.merge_model.sortby("depth")
-        # self.merge_model = self.merge_model.assign_coords(latitude=self.merge_model.latitude[::-1]).sortby("latitude")
-        # self.merge_model = self.merge_model.assign_coords(longitude=((self.merge_model.longitude + 180) % 360)).sortby("longitude")
         self.merge_model = Dataset(
             "", Dataset.GLOBAL, xr_dataset=self.merge_model, depth_units="km"
         )
