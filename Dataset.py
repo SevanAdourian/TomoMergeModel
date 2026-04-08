@@ -331,15 +331,15 @@ class Dataset:
         """Rename coordinate variables to standard latitude, longitude, and depth names."""
 
         name_map = {
-            "latitude": ["lat", "latitude", "Latitude", "LAT"],
-            "longitude": ["lon", "longitude", "Longitude", "LON"],
-            "depth": ["depth", "DEPTH", "z", "level"],
+            "latitude": ["lat", "latitude", "y"],
+            "longitude": ["lon", "longitude", "x"],
+            "depth": ["depth", "z", "level"],
         }
 
         for key in name_map.keys():
             found = False
             for value in name_map[key]:
-                if value in self.dataset.variables:
+                if value.lower() in self.dataset.variables:
                     self.dataset = self.dataset.rename({value: key})
                     found = True
                     break
@@ -395,7 +395,9 @@ class Dataset:
             da_sel = da
             depth_label = None
 
-        lats = da_sel["latitude"].values
+        da_sel = da_sel.sortby("latitude")
+
+        lats = da_sel["latitude"].values[::-1]
         lons = da_sel["longitude"].values
         data = da_sel.values
 

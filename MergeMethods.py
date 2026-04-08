@@ -149,7 +149,7 @@ class MergeMethods:
             reg_field=reg_field.copy(),
             mask_mode=getattr(self.conf, "mask_mode", "bounds"),
         )
-        pdb.set_trace()
+        # pdb.set_trace()
 
         if self.conf.win_type == "spherical":  # spherical or rectangular'
             #   - Construct spherical harmonic window function from mask
@@ -188,7 +188,7 @@ class MergeMethods:
                 f"Unsupported win_type '{self.conf.win_type}'. Expected 'spherical' or 'rectangular'."
             )
 
-        reg_win_energy_grid.data = np.flipud(reg_win_energy_grid.data)
+        # reg_win_energy_grid.data = np.flipud(reg_win_energy_grid.data)
 
         return reg_win_energy_grid
 
@@ -401,8 +401,8 @@ class MergeMethods:
         zmesh = lon_lat_field[varname].sel(depth=float(depth))
         zmesh = zmesh.sortby("longitude")
         # zmesh.assign_coords(latitude=zmesh.latitude[::-1])
-        zmesh = np.flipud(zmesh.values)
-        return zmesh
+        # zmesh = np.flipud(zmesh.values)
+        return zmesh.values
 
     def merge(self):
         """Merge regional and global models across all depth slices and return merged Dataset."""
