@@ -15,7 +15,7 @@ def main() -> None:
         Dataset.GLOBAL,
         depth_units="km",
     )
-    regional_mod = Dataset(
+    reg_alaska = Dataset(
         file_path="Data/netcdf/alaska.nc",
         model_type=Dataset.REGIONAL,
         depths=depths,
@@ -23,10 +23,27 @@ def main() -> None:
         global_model=global_mod,
     )
     configParams = ConfigParams(
-        239, 80, (197.5, 230.5), (52.65, 71.55), "spherical"
+        239, 40, (197.5, 230.5), (52.65, 71.55), "spherical"
     )
 
-    merger = MergeMethods(regional_mod, global_mod, configParams, "Vs", "vsv")
+    merger = MergeMethods(reg_alaska, global_mod, configParams, "Vs", "vsv")
+    print("Created merge methods instance")
+
+    print("Merging global and regional")
+    merged_mod = merger.merge()
+
+    reg_japan = Dataset(
+        file_path="Data/netcdf/csem-japan-2019.12.01.nc",
+        model_type=Dataset.REGIONAL,
+        depths=depths,
+        depth_units="km",
+        global_model=merged_mod,
+    )
+    configParams = ConfigParams(
+        239, 40, (120, 150), (20, 50), "spherical"
+    )
+
+    merger = MergeMethods(reg_japan, merged_mod, configParams, "Vs", "vsv")
     print("Created merge methods instance")
 
     print("Merging global and regional")

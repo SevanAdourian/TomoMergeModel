@@ -419,7 +419,7 @@ class MergeMethods:
 
         # Actually concatneation returns a DataArray, not a DataSet
         merged_all_arrays = xr.concat(merged_arrays, dim="depth")
-        self.merge_model = merged_all_arrays.to_dataset(name="merged")
+        self.merge_model = merged_all_arrays.to_dataset(name=self.global_variable)
 
         # Needed for multiprocessing
         self.merge_model = self.merge_model.sortby("depth")
