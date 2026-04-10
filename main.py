@@ -48,7 +48,7 @@ def main() -> None:
         239, 30, (120, 150), (20, 50), "spherical"
     )
 
-    merger = MergeMethods(reg_japan, merged_mod, configParams, "Vs", "vsv")
+    merger = MergeMethods(reg_japan, merged_mod, configParams, "vsv", "vsv")
     print("Merging Japan regional model into Alaska-merged global...")
     merged_mod = merger.merge()
 

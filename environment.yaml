@@ -17,4 +17,5 @@ dependencies:
     - ducc0
     - pytest
     - pyyaml
+    - cmcrameri
     
