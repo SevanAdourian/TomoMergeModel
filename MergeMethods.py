@@ -321,11 +321,7 @@ class MergeMethods:
         merged_grid = global_grid * (1 - reg_win_grid) + blended_grid * reg_win_grid
         merged_clm = merged_grid.expand().pad(lmax)
 
-        # Debug: save merged map for visual inspection
-        filename = f"merged_150km.png"
-        self.plot_map_and_spectra(merged_grid, merged_clm, filename)
-
-        return merged_grid
+        return merged_grid, reg_clm, blended_clm, merged_clm
 
     def process_slice(self, depth):
         """Process and merge regional and global models at a single depth slice.
@@ -371,13 +367,19 @@ class MergeMethods:
                 ),
                 global_clm,
             )
-            summed_grid = self.apply_window(
+            summed_grid, reg_clm, blended_clm, merged_clm = self.apply_window(
                 global_grid, global_clm, reg_grid, reg_win_energy_grid
             )
-
-            # Debug: save global-only map for comparison
-            filename = f"global_{depth}km.png"
-            self.plot_map_and_spectra(global_grid, global_clm, filename)
+            self.plot_combined_spectra(
+                spectra_series=[
+                    ("regional", reg_clm),
+                    ("global", global_clm),
+                    ("blended", blended_clm),
+                    ("merged", merged_clm),
+                ],
+                file_name=f"spectra_{float(depth):g}km.png",
+                title=f"Power Spectra Comparison ({float(depth):g} km)",
+            )
         else:
             # Depth is below regional coverage — pass through global model unchanged
             summed_grid = global_grid
@@ -410,6 +412,37 @@ class MergeMethods:
         grid_object.plot(ax=col1, colorbar="right", cb_label="Power", show=False)
         clm_object.plot_spectrum(ax=col2)
         fig.legend(loc="upper right")
+        fig.savefig(file_name, dpi=400)
+        plt.close(fig)
+        return
+
+    def plot_combined_spectra(self, spectra_series, file_name, title=None):
+        """Plot multiple spectra on one axis and save to file.
+
+        Args:
+            spectra_series: Iterable of ``(label, clm_object)`` where each
+                ``clm_object`` is a pyshtools SHCoeffs instance.
+            file_name: Output image path.
+            title: Optional figure title.
+        """
+
+        fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+
+        for label, clm_object in spectra_series:
+            spectrum = clm_object.spectrum()
+            degrees = np.arange(spectrum.shape[0])
+
+            # Skip degree zero for log plotting; it dominates and hides detail.
+            ax.loglog(degrees[1:], spectrum[1:], label=label)
+
+        ax.set_xlabel("Spherical harmonic degree (l)")
+        ax.set_ylabel("Power")
+        if title is not None:
+            ax.set_title(title)
+        ax.grid(True, which="both", linestyle=":", alpha=0.5)
+        ax.legend(loc="best")
+
+        fig.tight_layout()
         fig.savefig(file_name, dpi=400)
         plt.close(fig)
         return

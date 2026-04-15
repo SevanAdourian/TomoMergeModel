@@ -36,7 +36,7 @@ def main() -> None:
     merger = MergeMethods(reg_alaska, global_mod, configParams, "Vs", "vsv")
     print("Merging Alaska regional model into global...")
     merged_mod = merger.merge()
-
+    """
     reg_japan = Dataset(
         file_path="Data/netcdf/csem-japan-2019.12.01.nc",
         model_type=Dataset.REGIONAL,
@@ -51,7 +51,7 @@ def main() -> None:
     merger = MergeMethods(reg_japan, merged_mod, configParams, "vsv", "vsv")
     print("Merging Japan regional model into Alaska-merged global...")
     merged_mod = merger.merge()
-
+    """
     print("Displaying merged maps...")
     cmap_seismic = cm.vik
     for depth in merged_mod.getDataset().depth.values:
