@@ -1,44 +1,120 @@
-Author: Sevan Adourian
-This package has the purpose to smoothly merge a global model within a global model.
+# TomoMergeModel
 
-### First you need to create the conda environment using the environment file
-#### Discard this part if you already have such an environment
+Authors: Sevan Adourian, Pranav Mucharla
+
+TomoMergeModel merges a regional tomography model into a global tomography model using spherical-harmonic blending and geographic windowing.
+
+## What Is In This Package
+
+This repo centers around only three classes:
+
+- `Dataset` ([Dataset.py](Dataset.py))
+- `MergeMethods` ([MergeMethods.py](MergeMethods.py))
+- `ConfigParams` ([ConfigParams.py](ConfigParams.py))
+
+## Quick Start
+
+### 1. Create the conda environment
+
+All dependencies are handled by the conda environment.
+
+```bash
 conda env create -f environment.yaml
+conda activate mergemod
+```
 
-### Add the ucbpy libraries to what is read by python
-cd /path/to/ucbpy/python3/libraries/
-conda develop .
+### 2. Prepare NetCDF files
 
-##### If you have a PYTHONPATH defined by the bash_rc by default, discard it
-PYTHONPATH=''
+You need at least:
 
-##### You are now ready to use the package
+- one global model NetCDF
+- one regional model NetCDF
 
-### Download glad-m25 (to run the example)
-wget https://ds.iris.edu/files/products/emc/emc-files/glad-m25-vp-0.0-n4.nc
-mv glad-m25-vp-0.0-n4.nc ./Data/netcdf
+You can use files already in this repo under [Data/netcdf](Data/netcdf), or add your own.
 
-### First step, write asciis of your model at depths of interest #####
-To run this code you need to edit conf.yaml and simply run
-python 0_netcdf_to_ascii.py conf.yaml
+#### Option A: Use included sample files
 
-If you have both tomography models in netcdf, great. However, this package is not
-yet capable of detecting the exact tree and variable names of the netcdf packages, 
-so you might have to tweak the code 0_netcdf_to_ascii.py (this feature will be coming soon)
-This code outputs ascii files for the global and regional model as follows in 3 columns:
-Longitude Latitude dV where dV is the velocity perturbation with respect to a 1D model.
-If your models are not in netcdf, this is the kind of file you will need to reproduce.
-The spacing in latitude and longitude does not need to be the same for global and regional.
+Example files already present in this repository:
 
-For those of you using SEMUCB, I directly provide the ascii files (since the netcdf file is not
-defined at enough depth knots to interpolate).
-See in ./Data/ascii/semucb
+- [Data/netcdf/semucb-2014-ucb-vs.nc](Data/netcdf/semucb-2014-ucb-vs.nc)
+- [Data/netcdf/CANVAS_15-60s_400km.nc](Data/netcdf/CANVAS_15-60s_400km.nc)
 
-### Second step, perform the merging #####
-If you followed step 1, you can go ahead and directly run 
-python 1_TomoModelMerge.py conf.yaml
+#### Option B: Download your own model files
 
-A good value for the nreg_win is 100, but this takes a bit more time to compute
-Adjust lreg_win depending on the resolution of your regional model
-The output is the merged ascii file at each depth. From there you can use the package ascii2A3d
-to write your A3d model.
+Global and regional tomography models are commonly distributed from model/project pages (for example IRIS EMC model pages or project repositories).
+
+Example pattern:
+
+```bash
+# PowerShell examples (replace URLs with the model file links you want)
+curl.exe -L "https://example.org/path/to/global_model.nc" -o "Data/netcdf/global_model.nc"
+curl.exe -L "https://example.org/path/to/regional_model.nc" -o "Data/netcdf/regional_model.nc"
+```
+
+If your source data is ASCII, you can also adapt [ascii_to_netcdf.py](ascii_to_netcdf.py) to convert it to NetCDF first.
+
+### 3. Run a merge script
+
+You can run [main.py](main.py) directly, or create a minimal script like this:
+
+```python
+from Dataset import Dataset
+from MergeMethods import MergeMethods
+from ConfigParams import ConfigParams
+
+
+def main() -> None:
+	depths = [150]
+
+	global_mod = Dataset(
+		file_path="Data/netcdf/semucb-2014-ucb-vs.nc",
+		model_type=Dataset.GLOBAL,
+		depth_units="km",
+	)
+
+	regional_mod = Dataset(
+		file_path="Data/netcdf/alaska.nc",
+		model_type=Dataset.REGIONAL,
+		depths=depths,
+		depth_units="km",
+		global_model=global_mod,
+	)
+
+	conf = ConfigParams(
+		reg_lmax=239,
+		win_lmax=30,
+		lon_bounds=(197.5, 230.5),
+		lat_bounds=(52.65, 71.55),
+		win_type="spherical",
+		mask_mode="bounds",
+	)
+
+	merger = MergeMethods(
+		model_one=regional_mod,
+		model_two=global_mod,
+		config_params=conf,
+		regional_variable="Vs",
+		global_variable="vsv",
+	)
+
+	merged = merger.merge()
+	merged.save_model("merged_output.nc")
+
+
+if __name__ == "__main__":
+	main()
+```
+
+Run it:
+
+```bash
+python main.py
+# or
+python your_merge_script.py
+```
+
+## Notes
+
+- Coordinate and variable names can differ across models. Ensure the variable names you pass to `MergeMethods` exist in your input NetCDF files.
+- Depth units must be set correctly (`"m"` or `"km"`) when creating `Dataset` objects.
+
