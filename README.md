@@ -113,6 +113,21 @@ python main.py
 python your_merge_script.py
 ```
 
+## Architecture
+
+The package is easiest to understand with two complementary views:
+
+- A static architecture view of class dependencies and external libraries.
+- A runtime flow view of the merge pipeline executed for each depth slice.
+
+### Core Class and Dependency Diagram
+
+<img src="assets/core_dependency_diagram.svg" width="800" alt="Core Dependency Diagram">
+
+### Runtime Merge Flow
+
+<img src="assets/merge_flow_diagram.svg" width="600" alt="Merge Flow Diagram">
+
 ## Notes
 
 - Coordinate and variable names can differ across models. Ensure the variable names you pass to `MergeMethods` exist in your input NetCDF files.
