@@ -2,20 +2,26 @@ name: mergemod
 channels:
     - conda-forge
 dependencies:
-    - python
-    - fftw
-    - liblapack
-    - numpy
-    - scipy
-    - matplotlib-base
-    - xarray
-    - pooch
-    - pandas
+    - astropy
     - cartopy
-    - pyshtools
-    - jupyter
+    - conda-build
     - ducc0
-    - pytest
-    - pyyaml
+    - fftw
+    - flake8
+    - gmt
+    - jupyter
+    - liblapack
+    - matplotlib-base
+    - numpy
+    - palettable
+    - pandas
+    - pooch
+    - pygmt
+    - pyshtools
+    - python
+    - requests
+    - scipy
+    - xarray
+    - pip
     - cmcrameri
     
