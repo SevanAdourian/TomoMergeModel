@@ -433,7 +433,7 @@ class MergeMethods:
             degrees = np.arange(spectrum.shape[0])
 
             # Skip degree zero for log plotting; it dominates and hides detail.
-            ax.loglog(degrees[1:], spectrum[1:], label=label)
+            ax.semilogy(degrees, spectrum, label=label)
 
         ax.set_xlabel("Spherical harmonic degree (l)")
         ax.set_ylabel("Power")
