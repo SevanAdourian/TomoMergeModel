@@ -1,8 +1,8 @@
 # Test file to run unit tests on creation of Dataset
 # and MergeMethods object and testing functionality
 
-from Dataset import Dataset
-from MergeMethods import MergeMethods
+from src.Dataset import Dataset
+from src.MergeMethods import MergeMethods
 import pytest
 
 # first series of tests: checking for invalid object creation

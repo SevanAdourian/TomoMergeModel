@@ -122,11 +122,11 @@ The package is easiest to understand with two complementary views:
 
 ### Core Class and Dependency Diagram
 
-<img src="assets/core_dependency_diagram.svg" width="800" alt="Core Dependency Diagram">
+<img src="docs/assets/core_dependency_diagram.svg" width="800" alt="Core Dependency Diagram">
 
 ### Runtime Merge Flow
 
-<img src="assets/merge_flow_diagram.svg" width="600" alt="Merge Flow Diagram">
+<img src="docs/assets/merge_flow_diagram.svg" width="600" alt="Merge Flow Diagram">
 
 ## Notes
 

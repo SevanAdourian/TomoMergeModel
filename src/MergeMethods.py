@@ -1,10 +1,11 @@
-from Dataset import Dataset
-from ConfigParams import ConfigParams
+from src.Dataset import Dataset
+from src.ConfigParams import ConfigParams
 import concurrent.futures
 import numpy as np
 import pyshtools
 import xarray as xr
 import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
 
 
 class MergeMethods:
@@ -408,9 +409,10 @@ class MergeMethods:
     def plot_map_and_spectra(self, grid_object, clm_object, file_name):
         """Plot spatial grid and power spectrum side by side and save to file."""
 
-        fig, (col1, col2) = plt.subplots(2, 1)
-        grid_object.plot(ax=col1, colorbar="right", cb_label="Power", show=False)
-        clm_object.plot_spectrum(ax=col2)
+        fig, ax = plt.subplots(
+            1, 1, subplot_kw={"projection": ccrs.PlateCarree()}
+        )
+        grid_object.plot(ax=ax, colorbar="right", cb_label="Power", show=False)
         fig.legend(loc="upper right")
         fig.savefig(file_name, dpi=400)
         plt.close(fig)

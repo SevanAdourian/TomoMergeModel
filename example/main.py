@@ -2,18 +2,17 @@ from __future__ import annotations
 
 import cmcrameri.cm as cm
 
-from Dataset import Dataset
-from MergeMethods import MergeMethods
-from ConfigParams import ConfigParams
+from src.Dataset import Dataset
+from src.MergeMethods import MergeMethods
+from src.ConfigParams import ConfigParams
 
 
 def main() -> None:
-    """Run a sequential two-region merge (Alaska then Japan) and display the results.
+    """Run a merge with Alaska and display the results.
 
     Workflow:
     1. Load the global GLAD-M25 model.
     2. Merge the Alaska regional model into the global model at the target depths.
-    3. Merge the Japan regional model into the already-merged Alaska result.
     4. Plot all variables of the final merged model at each depth.
     """
     depths = [150]
@@ -36,22 +35,8 @@ def main() -> None:
     merger = MergeMethods(reg_alaska, global_mod, configParams, "Vs", "vsv")
     print("Merging Alaska regional model into global...")
     merged_mod = merger.merge()
-    """
-    reg_japan = Dataset(
-        file_path="Data/netcdf/csem-japan-2019.12.01.nc",
-        model_type=Dataset.REGIONAL,
-        depths=depths,
-        depth_units="km",
-        global_model=merged_mod,
-    )
-    configParams = ConfigParams(
-        239, 30, (120, 150), (20, 50), "spherical"
-    )
-
-    merger = MergeMethods(reg_japan, merged_mod, configParams, "vsv", "vsv")
-    print("Merging Japan regional model into Alaska-merged global...")
-    merged_mod = merger.merge()
-    """
+   
+    
     print("Displaying merged maps...")
     cmap_seismic = cm.vik
     for depth in merged_mod.getDataset().depth.values:
