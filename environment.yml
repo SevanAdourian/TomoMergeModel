@@ -1,0 +1,23 @@
+name: geostitch_env
+channels:
+    - conda-forge
+dependencies:
+    - python>=3.12
+    - cartopy
+    - ducc0
+    - matplotlib-base
+    - numpy
+    - pandas
+    - pooch
+    - pyshtools
+    - requests
+    - scipy
+    - xarray
+    - netcdf4
+    - h5netcdf
+    - dask
+    - pytest
+    - cmcrameri
+    - pip
+    - pip:
+        - -e .

@@ -1,18 +1,11 @@
 from __future__ import annotations
 
-# imports here
-import os, yaml
+import os
 import numpy as np
-import pyshtools
-import sys
 import matplotlib.pyplot as plt
-import pandas as pd
-import netCDF4 as nc
 import xarray as xr
-import pdb
 import cartopy.crs as ccrs
-from Model1D import Model1D
-from scipy.interpolate import RectSphereBivariateSpline, RectBivariateSpline
+from scipy.interpolate import RectSphereBivariateSpline
 
 
 class Dataset:
@@ -20,55 +13,59 @@ class Dataset:
     GLOBAL = 1  # Global Dataset object
     RADIUS_IN_METERS = 6371000
 
-    # constructors
     def __init__(
         self,
-        filePath: str,
-        modelType: int,
-        depthUnits: str = None,
-        xrDataset: xr.Dataset = None,
-        globalModel: Dataset = None,
+        file_path: str,
+        model_type: int,
+        depth_units: str = None,
+        xr_dataset: xr.Dataset = None,
+        global_model: Dataset = None,
         depths: list[int] = None,
     ):
         """Initialize a dataset and normalize its coordinates and units."""
 
         # Input validation for file path
-        if filePath is None:
+        if file_path is None:
             raise ValueError("Need to pass in file path")
 
         # Input validation for model type
-        if modelType not in [Dataset.REGIONAL, Dataset.GLOBAL]:
+        if model_type not in [Dataset.REGIONAL, Dataset.GLOBAL]:
             raise ValueError("Model type must be Dataset.REGIONAL or Dataset.GLOBAL")
 
         # If model is regional, and a spline file and global model are given, depth units are needed
-        if modelType == Dataset.REGIONAL:
-            if depths is not None and globalModel is not None and depthUnits is None:
+        if model_type == Dataset.REGIONAL:
+            if depths is not None and global_model is not None and depth_units is None:
                 raise ValueError(
                     "If interpolation on depths is needed, depth units must be given"
                 )
 
         # assign the file path and model type, and parse file for other attributes
-        self.filePath: str = filePath
-        self.modelType: int = modelType
+        self.file_path: str = file_path
+        self.model_type: int = model_type
         self.depths: list[int] = depths
-        if depths == None and modelType == Dataset.REGIONAL:
-            self.depths = globalModel.getDataset().depth.values
+        if depths is None and model_type == Dataset.REGIONAL:
+            if global_model is None:
+                raise ValueError(
+                    "globalModel must be provided for REGIONAL models when depths is None"
+                )
+            self.depths = global_model.getDataset().depth.values
 
-        # open the file, reassign variable names, homogenize units, and convert longitude values
-        if filePath == "":
-            if xrDataset is None:
+        # Load from an existing xr.Dataset or open from file
+        if file_path == "":
+            if xr_dataset is None:
                 raise ValueError("If empty filePath is given, xrDataset must be given")
-            self.dataset: xr.Dataset = xrDataset
+            self.dataset: xr.Dataset = xr_dataset
         else:
-            self.dataset: xr.Dataset = xr.open_dataset(filePath)
+            self.dataset: xr.Dataset = xr.open_dataset(file_path)
 
-        # assign names to varialbes and convert the units
+        # Normalize coordinate names, units, and longitude convention
         self.assign_names()
-        self.convert_units(depthUnits)
+        if depth_units is not None:
+            self.convert_units(depth_units)
 
-        if self.modelType == Dataset.REGIONAL:  # interpolating the regional model
+        if self.model_type == Dataset.REGIONAL:
             target_lats, target_lons, target_depths = self.getInterpolationParameters(
-                self.depths, globalModel=globalModel
+                self.depths, global_model=global_model
             )
             self.dataset: xr.Dataset = Dataset.interpolate_model(
                 self.dataset, target_lats, target_lons, target_depths
@@ -77,14 +74,13 @@ class Dataset:
         # convert the longitude
         self.convert_longitude()
 
-    # get the interpolation parameters based on the regional and global model
     def getInterpolationParameters(
-        self, depths: list[int], globalModel: Dataset
+        self, depths: list[int], global_model: Dataset
     ) -> tuple:
         """Return target latitude/longitude grids and optional depth knots."""
 
         # get target latitude and longitude
-        glo: xr.Dataset = globalModel.getDataset()
+        glo: xr.Dataset = global_model.getDataset()
         dlon_reg: xr.DataArray = glo.longitude[1] - glo.longitude[0]
         dlat_reg: xr.DataArray = glo.latitude[1] - glo.latitude[0]
 
@@ -95,13 +91,9 @@ class Dataset:
 
         spline_knots_reg = None
         if depths is not None:
-            # get spline knots from the spline file
             spline_knots: np.ndarray = np.array(depths)
-            # spline_knots: np.ndarray = (
-            #     Dataset.RADIUS_IN_METERS / 1000.0 - spline_knots_radius
-            # )
 
-            # Get the relevant splines for the regional model
+            # Filter to depths that fall within the regional model's depth range
             spline_knots_reg: np.ndarray = spline_knots[
                 np.where(
                     np.logical_and(
@@ -112,11 +104,10 @@ class Dataset:
             ]
         return (lat_reg, lon_reg, spline_knots_reg)
 
-    # getters and setters here
     def getFilePath(self) -> str:
         """Return the source file path for this dataset."""
 
-        return self.filePath
+        return self.file_path
 
     def setFilePath(self, path: str):
         """Set the dataset file path after validating it exists."""
@@ -127,7 +118,7 @@ class Dataset:
             raise ValueError("File path must be a string")
         if not os.path.exists(path):
             raise ValueError("Incorrect file path: file could not be found")
-        self.filePath = path
+        self.file_path = path
 
     def getDataset(self) -> xr.Dataset:
         """Return the underlying xarray dataset."""
@@ -137,16 +128,16 @@ class Dataset:
     def getModelType(self) -> int:
         """Return the model type constant for this dataset."""
 
-        return self.modelType
+        return self.model_type
 
-    def setModelType(self, modelType: int):
+    def setModelType(self, model_type: int):
         """Set the model type after validating allowed values."""
 
-        if modelType not in [Dataset.REGIONAL, Dataset.GLOBAL]:
+        if model_type not in [Dataset.REGIONAL, Dataset.GLOBAL]:
             raise ValueError("Model type must be Dataset.REGIONAL or Dataset.GLOBAL")
-        self.modelType = modelType
+        self.model_type = model_type
 
-    # interpolate a depth slice
+    @staticmethod
     def interpolate_slice(
         colats,
         lons,
@@ -175,7 +166,6 @@ class Dataset:
         return interpolated_slice
 
     @staticmethod
-    # Interpolate all depth slices
     def interpolate_model(
         ds: xr.Dataset,
         target_lats: np.ndarray,
@@ -184,23 +174,21 @@ class Dataset:
     ):
         """Interpolate all variables to target latitude/longitude and optional depth grids."""
 
-        # Create a new dataset for interpolated values
         new_ds: xr.Dataset = xr.Dataset()
 
-        # Decreasing latitude for increasing colatitudes
+        # Sort descending in latitude so colatitudes are ascending
         ds: xr.Dataset = ds.sortby("latitude", ascending=False)
 
-        # Interpolate over depth using builtin interp function
+        # Interpolate to target depths (if provided) before spatial interpolation
         if target_depths is not None:
             tmp_ds: xr.Dataset = ds.interp(depth=target_depths, method="linear")
         else:
             tmp_ds: xr.Dataset = ds.copy()
 
-        # Get the latitudes, longitudes, and depths of the variable
         lats: np.ndarray = tmp_ds.coords["latitude"].values
         lons: np.ndarray = tmp_ds.coords["longitude"].values
 
-        # Convert to colatitude and radians
+        # Convert lat/lon to colatitude (radians) required by RectSphereBivariateSpline
         colats: np.ndarray = np.pi / 2 - np.deg2rad(lats)
         lons: np.ndarray = np.deg2rad(lons)
 
@@ -213,7 +201,7 @@ class Dataset:
         if target_depths is not None:
             ndepths: int = len(target_depths)
 
-        # Create mask to interpolate on, rest will be filled with NaNs
+        # Build lat/lon masks so points outside the regional extent stay NaN
         min_colat = np.min(colats)
         max_colat = np.max(colats)
         min_lon = np.min(lons)
@@ -226,17 +214,12 @@ class Dataset:
 
         # Loop over each variable in the dataset
         for varname in tmp_ds.data_vars:
-            # Interpolate the variable at the target latitudes and longitudes
             shape = [nlat, nlon, ndepths] if ndepths is not None else [nlat, nlon]
             interpolated_data = np.full(shape, np.nan)
 
-            # Loop over depths if there are depths, otherwise just do it for the one layer
             if ndepths is not None:
                 for i_d, depth in enumerate(tmp_ds.depth):
-                    # Get the data array for the variable
                     var_data = tmp_ds[varname].isel(depth=i_d).values
-
-                    # Create an interpolation function for the variable at given depth
                     interpolated_data[:, :, i_d] = Dataset.interpolate_slice(
                         colats,
                         lons,
@@ -266,64 +249,70 @@ class Dataset:
                     lon_indices,
                 )
 
-            # Update the data array for the variable in the new dataset
-            new_ds[varname] = xr.DataArray(
-                interpolated_data,
-                coords=[
-                    ("latitude", np.flipud(target_lats)),
-                    ("longitude", np.rad2deg(target_lons)),
-                    ("depth", target_depths),
-                ],
-            )
+            if target_depths is not None:
+                new_ds[varname] = xr.DataArray(
+                    interpolated_data,
+                    coords=[
+                        ("latitude", np.flipud(target_lats)),
+                        ("longitude", np.rad2deg(target_lons)),
+                        ("depth", target_depths),
+                    ],
+                )
+            else:
+                new_ds[varname] = xr.DataArray(
+                    interpolated_data,
+                    coords=[
+                        ("latitude", np.flipud(target_lats)),
+                        ("longitude", np.rad2deg(target_lons)),
+                    ],
+                )
 
-            new_ds = new_ds.sortby("latitude", ascending=True)
+        new_ds = new_ds.sortby("latitude", ascending=True)
 
         return new_ds
 
-    def convert_units(self, depthUnit: str = "m"):
-        """Convert depth and supported velocity fields between meter and kilometer units."""
+    def convert_units(self, depth_unit: str = "m"):
+        """Convert depth coordinates and velocity fields from meters to kilometers.
 
-        if depthUnit == "m":
+        Args:
+            depth_unit: The unit of the source data. Use ``'m'`` to trigger
+                conversion to km; ``'km'`` is a no-op. Any other value raises.
+        """
+        if depth_unit == "m":
             self.dataset = self.dataset.assign_coords(depth=self.dataset.depth / 1000.0)
             if "VSV" in self.dataset:
                 self.dataset = self.dataset.assign(
                     VSV=lambda x: self.dataset.VSV / 1000.0
                 )
-
             if "VSH" in self.dataset:
                 self.dataset = self.dataset.assign(
                     VSH=lambda x: self.dataset.VSH / 1000.0
                 )
-
-        elif depthUnit != "km":
-            raise ValueError("Depth Units must be m or km")
+        elif depth_unit != "km":
+            raise ValueError("depth_unit must be 'm' or 'km'")
 
     def convert_longitude(self):
-        """Convert longitude values from [-180, 180] style to [0, 360]."""
-
-        lon_0_360 = []
-        for lon in self.dataset.longitude.to_numpy():
-            if lon < 0:
-                lon_r = lon + 360.0
-            else:
-                lon_r = lon
-            lon_0_360.append(lon_r)
-
+        """Remap longitude coordinates from [-180, 180] to [0, 360] and sort."""
+        lon_0_360 = [
+            lon + 360.0 if lon < 0 else lon
+            for lon in self.dataset.longitude.to_numpy()
+        ]
         self.dataset = self.dataset.assign_coords(longitude=lon_0_360)
+        self.dataset = self.dataset.sortby("longitude", ascending=True)
 
     def assign_names(self):
         """Rename coordinate variables to standard latitude, longitude, and depth names."""
 
         name_map = {
-            "latitude": ["lat", "latitude", "Latitude", "LAT"],
-            "longitude": ["lon", "longitude", "Longitude", "LON"],
-            "depth": ["depth", "DEPTH", "z", "level"],
+            "latitude": ["lat", "latitude", "y"],
+            "longitude": ["lon", "longitude", "x"],
+            "depth": ["depth", "z", "level"],
         }
 
         for key in name_map.keys():
             found = False
             for value in name_map[key]:
-                if value in self.dataset.variables:
+                if value.lower() in self.dataset.variables:
                     self.dataset = self.dataset.rename({value: key})
                     found = True
                     break
@@ -331,12 +320,12 @@ class Dataset:
             if not found:
                 raise ValueError(f"Could not detect variable name for {key}")
 
-    def save_model(self, filePath: str):
+    def save_model(self, file_path: str):
         """Save the current dataset to a NetCDF file path."""
 
-        if filePath is None:
+        if file_path is None:
             raise ValueError("File path to save model must be given")
-        self.dataset.to_netcdf(filePath)
+        self.dataset.to_netcdf(file_path)
 
     def plot_variable(
         self,
@@ -350,19 +339,30 @@ class Dataset:
         show_colorbar=True,
         figsize=(10, 5),
     ):
-        """
-        Plot one variable from the dataset on a PlateCarree map.
-        - varname: name of a data variable in the xr.Dataset
-        - depth: either an index (int) or a value (float) to pick nearest depth for 3D variables.
-                 If None and variable has a depth dimension, the first level is used.
-        Returns (fig, ax).
+        """Plot a single data variable on a global PlateCarree map.
+
+        Args:
+            varname: Name of the variable in the dataset to plot.
+            depth: Depth level to visualize for 3-D variables. Accepts an
+                integer index, a float value (nearest depth is selected), or
+                ``None`` to use the first depth level.
+            ax: Existing matplotlib axes to draw on. A new figure is created
+                when ``None``.
+            cmap: Matplotlib colormap name.
+            vmin: Lower bound for the color scale.
+            vmax: Upper bound for the color scale.
+            title: Axes title. Defaults to ``"<varname> (depth=<depth>)"``.
+            show_colorbar: Whether to attach a colorbar to the plot.
+            figsize: Figure size passed to ``plt.subplots``.
+
+        Returns:
+            Tuple of ``(fig, ax)``.
         """
         if varname not in self.dataset:
             raise ValueError(f"{varname} not found in dataset")
 
         da = self.dataset[varname]
 
-        # handle depth dimension if present
         if "depth" in da.dims:
             if depth is None:
                 da_sel = da.isel(depth=0)
@@ -371,7 +371,7 @@ class Dataset:
                 da_sel = da.isel(depth=int(depth))
                 depth_label = str(da.depth.values[int(depth)])
             else:
-                # assume numeric value -> find nearest depth
+                # Nearest-depth selection for float values
                 idx = int(np.argmin(np.abs(da.depth.values - float(depth))))
                 da_sel = da.isel(depth=idx)
                 depth_label = str(da.depth.values[idx])
@@ -379,11 +379,12 @@ class Dataset:
             da_sel = da
             depth_label = None
 
-        lats = da_sel["latitude"].values
+        da_sel = da_sel.sortby("latitude")
+
+        lats = da_sel["latitude"].values[::-1]
         lons = da_sel["longitude"].values
         data = da_sel.values
 
-        # prepare figure / axis
         created_fig = False
         if ax is None:
             fig, ax = plt.subplots(
@@ -393,8 +394,6 @@ class Dataset:
         else:
             fig = ax.figure
 
-        # pcolormesh expects 2D lon/lat grids or 1D coords with matching shapes
-        # Use transform to PlateCarree for proper georeferencing
         pcm = ax.pcolormesh(
             lons,
             lats,
@@ -437,12 +436,21 @@ class Dataset:
         figsize=(10, 5),
         show=True,
     ):
-        """
-        Iterate through all data variables in the dataset and plot each.
-        - depth: forwarded to plot_variable for 3D variables
-        - save_dir: if provided, PNG files are written to this directory (created if needed)
-        - show: whether to call plt.show() after each plot (useful to turn off when saving many files)
-        Returns list of (varname, filepath_or_None).
+        """Plot every data variable in the dataset at a given depth.
+
+        Args:
+            depth: Depth level forwarded to :meth:`plot_variable`.
+            save_dir: Directory to write PNG files into. Created automatically
+                if it does not exist. When ``None``, figures are not saved.
+            cmap: Matplotlib colormap name applied to all plots.
+            vmin: Shared lower bound for the color scale.
+            vmax: Shared upper bound for the color scale.
+            figsize: Figure size passed to each :meth:`plot_variable` call.
+            show: Call ``plt.show()`` after each plot. Set to ``False`` when
+                batch-saving to avoid blocking.
+
+        Returns:
+            List of ``(varname, filepath_or_None)`` tuples.
         """
         results = []
         if save_dir is not None:

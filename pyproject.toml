@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geostitch"
+version = "0.1.0"
+description = "A package for merging multi-resolution georeferenced datasets using spherical-harmonic blending."
+readme = "README.md"
+requires-python = ">=3.12" # Adjusted for 2026 compatibility
+authors = [
+  { name="Sevan Adourian" },
+  { name="Pranav Mucharla" },
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "xarray",
+    "pyshtools",
+    "cartopy",
+    "matplotlib",
+    "requests",
+    "cmcrameri"
+]
+[tool.setuptools]
+packages = ["geostitch"]

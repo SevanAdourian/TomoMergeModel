@@ -1,6 +1,8 @@
-**/Data/figures/*.png
-**/Data/figures/*.ps
-**/Data/figures/*.pdf
-**/Data/ascii/*.xyz
-**/Data/ascii/*/*.xyz
-**/Data/netcdf/glad-m*-vs-0.0-n4.nc
+*/*.*~
+*.png
+*.ps
+*.pdf
+*.xyz
+**/data/glad-m*-v*-0.0-n4.nc
+**/data/alaska.nc
+suggested_improvements.txt
