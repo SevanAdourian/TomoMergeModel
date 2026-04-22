@@ -1,8 +1,10 @@
-# TomoMergeModel
+# geostitch
 
 Authors: Sevan Adourian, Pranav Mucharla
 
-TomoMergeModel merges a regional tomography model into a global tomography model using spherical-harmonic blending and geographic windowing.
+geostitch is a utility package used to seemlessly merge any regional geo-referenced dataset into a global model using spherical-harmonic blending and geographic windowing. It is built on top of pyshtools [[1]](#1).
+
+The examples are taken from seismic tomography, but the package is usable for any geo-referenced dataset (climate, gravity, satellite data, etc...), granted that they are stored in a netcdf file.
 
 ## What Is In This Package
 
@@ -30,14 +32,14 @@ You need at least:
 - one global model NetCDF
 - one regional model NetCDF
 
-You can use files already in this repo under [Data/netcdf](Data/netcdf), or add your own.
+You can use files already in this repo under [data](data), or add your own.
 
 #### Option A: Use included sample files
 
 Example files already present in this repository:
 
-- [Data/netcdf/semucb-2014-ucb-vs.nc](Data/netcdf/semucb-2014-ucb-vs.nc)
-- [Data/netcdf/CANVAS_15-60s_400km.nc](Data/netcdf/CANVAS_15-60s_400km.nc)
+- [data/semucb-2014-ucb-vs.nc](data/semucb-2014-ucb-vs.nc)
+- [data/CANVAS_15-60s_400km.nc](data/CANVAS_15-60s_400km.nc)
 
 #### Option B: Download your own model files
 
@@ -47,8 +49,8 @@ Example pattern:
 
 ```bash
 # PowerShell examples (replace URLs with the model file links you want)
-curl.exe -L "https://example.org/path/to/global_model.nc" -o "Data/netcdf/global_model.nc"
-curl.exe -L "https://example.org/path/to/regional_model.nc" -o "Data/netcdf/regional_model.nc"
+curl.exe -L "https://example.org/path/to/global_model.nc" -o "data/global_model.nc"
+curl.exe -L "https://example.org/path/to/regional_model.nc" -o "data/regional_model.nc"
 ```
 
 If your source data is ASCII, you can also adapt [ascii_to_netcdf.py](ascii_to_netcdf.py) to convert it to NetCDF first.
@@ -67,13 +69,13 @@ def main() -> None:
 	depths = [150]
 
 	global_mod = Dataset(
-		file_path="Data/netcdf/semucb-2014-ucb-vs.nc",
+		file_path="data/semucb-2014-ucb-vs.nc",
 		model_type=Dataset.GLOBAL,
 		depth_units="km",
 	)
 
 	regional_mod = Dataset(
-		file_path="Data/netcdf/alaska.nc",
+		file_path="data/alaska.nc",
 		model_type=Dataset.REGIONAL,
 		depths=depths,
 		depth_units="km",
@@ -133,3 +135,9 @@ The package is easiest to understand with two complementary views:
 - Coordinate and variable names can differ across models. Ensure the variable names you pass to `MergeMethods` exist in your input NetCDF files.
 - Depth units must be set correctly (`"m"` or `"km"`) when creating `Dataset` objects.
 
+## References
+<a id="1">[1]</a> 
+Meschede, M. and Wieczorek, M., 2018.
+SHTools: Tools for Working with Spherical Harmonics.
+Geochemistry, Geophysics, Geosystems,
+AGU and the Geochemical Society.
