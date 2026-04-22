@@ -21,8 +21,8 @@ This repo centers around only three classes:
 All dependencies are handled by the conda environment.
 
 ```bash
-conda env create -f environment.yaml
-conda activate mergemod
+conda env create -f environment.yml
+conda activate geostitch_env
 ```
 
 ### 2. Prepare NetCDF files
@@ -60,9 +60,9 @@ If your source data is ASCII, you can also adapt [ascii_to_netcdf.py](ascii_to_n
 You can run [main.py](main.py) directly, or create a minimal script like this:
 
 ```python
-from Dataset import Dataset
-from MergeMethods import MergeMethods
-from ConfigParams import ConfigParams
+from geostitch import Dataset
+from geostitch import MergeMethods
+from geostitch import ConfigParams
 
 
 def main() -> None:
