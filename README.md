@@ -1,6 +1,6 @@
 # geostitch
 
-Authors: Sevan Adourian, Pranav Mucharla
+Authors: Sevan Adourian, Pranav Mucharla, Dan Frost
 
 geostitch is a utility package used to seemlessly merge any regional geo-referenced dataset into a global model using spherical-harmonic blending and geographic windowing. It is built on top of pyshtools [[1]](#1).
 
