@@ -1,5 +1,6 @@
-from src.Dataset import Dataset
-from src.ConfigParams import ConfigParams
+from .Dataset import Dataset
+from .ConfigParams import ConfigParams
+
 import concurrent.futures
 import numpy as np
 import pyshtools

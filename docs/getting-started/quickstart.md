@@ -20,13 +20,13 @@ def main() -> None:
     depths = [150]
 
     global_mod = Dataset(
-        file_path="Data/netcdf/semucb-2014-ucb-vs.nc",
+        file_path="data/semucb-2014-ucb-vs.nc",
         model_type=Dataset.GLOBAL,
         depth_units="km",
     )
 
     regional_mod = Dataset(
-        file_path="Data/netcdf/alaska.nc",
+        file_path="data/alaska.nc",
         model_type=Dataset.REGIONAL,
         depths=depths,
         depth_units="km",

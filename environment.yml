@@ -1,27 +1,23 @@
-name: mergemod
+name: geostitch_env
 channels:
     - conda-forge
 dependencies:
-    - astropy
+    - python>=3.12
     - cartopy
-    - conda-build
     - ducc0
-    - fftw
-    - flake8
-    - gmt
-    - jupyter
-    - liblapack
     - matplotlib-base
     - numpy
-    - palettable
     - pandas
     - pooch
-    - pygmt
     - pyshtools
-    - python
     - requests
     - scipy
     - xarray
-    - pip
+    - netcdf4
+    - h5netcdf
+    - dask
+    - pytest
     - cmcrameri
-    
+    - pip
+    - pip:
+        - -e .
