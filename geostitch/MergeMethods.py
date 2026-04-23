@@ -150,7 +150,6 @@ class MergeMethods:
             reg_field=reg_field.copy(),
             mask_mode=getattr(self.conf, "mask_mode", "bounds"),
         )
-        # pdb.set_trace()
 
         if self.conf.win_type == "spherical":
             # Multi-taper spherical harmonic window — smooth, tapered edges
@@ -184,7 +183,6 @@ class MergeMethods:
                 f"Unsupported win_type '{self.conf.win_type}'. Expected 'spherical' or 'rectangular'."
             )
 
-        # reg_win_energy_grid.data = np.flipud(reg_win_energy_grid.data)
 
         return reg_win_energy_grid
 
@@ -254,8 +252,8 @@ class MergeMethods:
             f"Unsupported mask_mode '{mode}'. Expected 'bounds' or 'continent'."
         )
 
-    def apply_window(self, global_grid, global_clm, reg_grid, reg_win_grid,
-                     lcut=60, delta=5):
+    def apply_window(self, global_grid, global_clm, reg_grid, reg_win_grid, depth,
+                     lcut=60, delta=5, plot=True):
         """Merge global and regional models via spectral blending and geographic windowing.
 
         Performs a two-stage merge:
@@ -305,9 +303,21 @@ class MergeMethods:
         merged_grid = global_grid * (1 - reg_win_grid) + blended_grid * reg_win_grid
         merged_clm = merged_grid.expand().pad(lmax)
 
+        if plot:
+            self.plot_combined_map(
+                grid_series=[
+                    ("regional", reg_grid),
+                    ("global", global_grid),
+                    ("blended", blended_grid),
+                    ("merged", merged_grid),
+                ],
+                file_name=f"reg_glo_grid_{float(depth):g}km.png",
+                title=f"Grids at ({float(depth):g} km)",
+            )
+
         return merged_grid, reg_clm, blended_clm, merged_clm
 
-    def process_slice(self, depth):
+    def process_slice(self, depth, plot=True):
         """Process and merge regional and global models at a single depth slice.
 
         When the requested depth falls within the regional model's depth range,
@@ -352,18 +362,19 @@ class MergeMethods:
                 global_clm,
             )
             summed_grid, reg_clm, blended_clm, merged_clm = self.apply_window(
-                global_grid, global_clm, reg_grid, reg_win_energy_grid
+                global_grid, global_clm, reg_grid, reg_win_energy_grid, depth, plot=plot
             )
-            self.plot_combined_spectra(
-                spectra_series=[
-                    ("regional", reg_clm),
-                    ("global", global_clm),
-                    ("blended", blended_clm),
-                    ("merged", merged_clm),
-                ],
-                file_name=f"spectra_{float(depth):g}km.png",
-                title=f"Power Spectra Comparison ({float(depth):g} km)",
-            )
+            if plot:
+                self.plot_combined_spectra(
+                    spectra_series=[
+                        ("regional", reg_clm),
+                        ("global", global_clm),
+                        ("blended", blended_clm),
+                        ("merged", merged_clm),
+                    ],
+                    file_name=f"spectra_{float(depth):g}km.png",
+                    title=f"Power Spectra Comparison ({float(depth):g} km)",
+                )
         else:
             # Depth is below regional coverage — pass through global model unchanged
             summed_grid = global_grid
@@ -484,11 +495,10 @@ class MergeMethods:
 
         zmesh = lon_lat_field[varname].sel(depth=float(depth))
         zmesh = zmesh.sortby("longitude")
-        # zmesh.assign_coords(latitude=zmesh.latitude[::-1])
-        # zmesh = np.flipud(zmesh.values)
+        
         return zmesh.values
 
-    def merge(self):
+    def merge(self, plot=True):
         """Merge regional and global models across all depth slices.
 
         Iterates over every depth in the regional model, calling
@@ -501,13 +511,11 @@ class MergeMethods:
 
         depths = self.regional_model.depths
 
-        # On Windows, process-based multiprocessing uses "spawn" which re-imports modules.
-        # Using a process Pool with bound methods/self can also hang due to pickling.
-        # A thread pool avoids both issues and is reliable here.
+        # Merge depth-by-depth and concatenate them all together
         merged_arrays = []
         for depth in depths:
             depth_val = float(depth)
-            merged_arrays.append(self.process_slice(depth_val))
+            merged_arrays.append(self.process_slice(depth_val, plot=plot))
 
         # concat returns a DataArray; convert to Dataset immediately
         merged_all_arrays = xr.concat(merged_arrays, dim="depth")
