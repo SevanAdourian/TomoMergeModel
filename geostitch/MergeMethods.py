@@ -1,7 +1,6 @@
 from .Dataset import Dataset
 from .ConfigParams import ConfigParams
 
-import concurrent.futures
 import numpy as np
 import pyshtools
 import xarray as xr
@@ -255,23 +254,6 @@ class MergeMethods:
             f"Unsupported mask_mode '{mode}'. Expected 'bounds' or 'continent'."
         )
 
-    # def apply_window(self, global_grid, global_clm, reg_grid, reg_win_energy_grid):
-    #     """Apply windowing mask to regional grid and merge with global model."""
-
-    #     # - Multiply grid by mask
-    #     reg_grid_masked = reg_grid * reg_win_energy_grid
-    #     reg_clm_masked = pyshtools.SHGrid.expand(reg_grid_masked)
-
-    #     # Global grid 
-
-    #     # Sum regional spectrum inside box (masked) with global spectra outside box (unmasked)
-    #     summed_clm = reg_clm_masked + global_clm
-
-    #     # Plot map and spectra for summed_clm
-
-    #     summed_grid = pyshtools.SHCoeffs.expand(summed_clm)
-    #     return summed_grid
-
     def apply_window(self, global_grid, global_clm, reg_grid, reg_win_grid,
                      lcut=60, delta=5):
         """Merge global and regional models via spectral blending and geographic windowing.
@@ -407,14 +389,61 @@ class MergeMethods:
 
         return da
 
-    def plot_map_and_spectra(self, grid_object, clm_object, file_name):
-        """Plot spatial grid and power spectrum side by side and save to file."""
+    def plot_combined_map(self, grid_series, file_name, title=None):
+        """Plot a series of multiple grids and save to file.
+        
+        Args:
+            grid_series: Iterable of ``(label, grid_object)`` where each
+                ``grid_object`` is a pyshtools SHGrid instance.
+            file_name: Output image path.
+            title: Optional figure title.
+        """
 
-        fig, ax = plt.subplots(
-            1, 1, subplot_kw={"projection": ccrs.PlateCarree()}
+        grid_series = list(grid_series)
+        if len(grid_series) == 0:
+            raise ValueError("grid_series must contain at least one grid")
+
+        nplots = len(grid_series)
+        ncols = int(np.ceil(np.sqrt(nplots)))
+        nrows = int(np.ceil(nplots / ncols))
+
+        fig, axes = plt.subplots(
+            nrows,
+            ncols,
+            figsize=(4 * ncols, 4 * nrows),
+            subplot_kw={"projection": ccrs.PlateCarree()},
+            squeeze=False,
         )
-        grid_object.plot(ax=ax, colorbar="right", cb_label="Power", show=False)
-        fig.legend(loc="upper right")
+
+        flat_axes = axes.ravel()
+        for ax, (label, grid_object) in zip(flat_axes, grid_series):
+            # Re-orient grid: north-up latitude and 180-degree longitude shift.
+            data = np.array(grid_object.data, copy=True)
+            data = np.flipud(data)
+            data = np.roll(data, data.shape[1] // 2, axis=1)
+
+            lons = np.array(grid_object.lons(), copy=True)
+            lats = np.array(grid_object.lats(), copy=True)[::-1]
+
+            img = ax.pcolormesh(
+                lons,
+                lats,
+                data,
+                transform=ccrs.PlateCarree(),
+                shading="auto",
+                cmap="RdBu_r",
+            )
+            ax.coastlines(linewidth=0.5)
+            ax.set_title(str(label))
+            fig.colorbar(img, ax=ax, orientation="horizontal", pad=0.04, shrink=0.85)
+
+        for ax in flat_axes[nplots:]:
+            ax.set_visible(False)
+
+        if title is not None:
+            fig.suptitle(title)
+
+        fig.tight_layout(rect=[0, 0, 1, 0.97] if title is not None else None)
         fig.savefig(file_name, dpi=400)
         plt.close(fig)
         return
@@ -435,7 +464,7 @@ class MergeMethods:
             spectrum = clm_object.spectrum()
             degrees = np.arange(spectrum.shape[0])
 
-            # Skip degree zero for log plotting; it dominates and hides detail.
+            # Plot the power on a logarithmic scale
             ax.semilogy(degrees, spectrum, label=label)
 
         ax.set_xlabel("Spherical harmonic degree (l)")
