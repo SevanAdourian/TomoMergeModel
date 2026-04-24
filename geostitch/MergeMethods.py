@@ -1,6 +1,7 @@
 from .Dataset import Dataset
 from .ConfigParams import ConfigParams
 
+import os
 import numpy as np
 import pyshtools
 import xarray as xr
@@ -455,7 +456,9 @@ class MergeMethods:
             fig.suptitle(title)
 
         fig.tight_layout(rect=[0, 0, 1, 0.97] if title is not None else None)
-        fig.savefig(file_name, dpi=400)
+        os.makedirs("figures", exist_ok=True)
+        save_path = os.path.join("figures", os.path.basename(file_name))
+        fig.savefig(save_path, dpi=400)
         plt.close(fig)
         return
 
@@ -486,7 +489,9 @@ class MergeMethods:
         ax.legend(loc="best")
 
         fig.tight_layout()
-        fig.savefig(file_name, dpi=400)
+        os.makedirs("figures", exist_ok=True)
+        save_path = os.path.join("figures", os.path.basename(file_name))
+        fig.savefig(save_path, dpi=400)
         plt.close(fig)
         return
 

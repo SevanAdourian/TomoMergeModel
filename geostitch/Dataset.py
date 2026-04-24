@@ -429,7 +429,7 @@ class Dataset:
     def plot_all_variables(
         self,
         depth=None,
-        save_dir: str = None,
+        save_dir: str = "figures",
         cmap="viridis",
         vmin=None,
         vmax=None,
@@ -440,8 +440,9 @@ class Dataset:
 
         Args:
             depth: Depth level forwarded to :meth:`plot_variable`.
-            save_dir: Directory to write PNG files into. Created automatically
-                if it does not exist. When ``None``, figures are not saved.
+            save_dir: Directory to write PNG files into. Defaults to
+                ``"figures"`` and is created automatically if it does not
+                exist. When ``None``, figures are not saved.
             cmap: Matplotlib colormap name applied to all plots.
             vmin: Shared lower bound for the color scale.
             vmax: Shared upper bound for the color scale.
