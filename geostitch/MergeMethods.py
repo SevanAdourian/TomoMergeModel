@@ -304,14 +304,14 @@ class MergeMethods:
         merged_clm = merged_grid.expand().pad(lmax)
 
         if plot:
-            self.plot_combined_map(
+            self.plot_combined_grid(
                 grid_series=[
                     ("regional", reg_grid),
                     ("global", global_grid),
                     ("blended", blended_grid),
                     ("merged", merged_grid),
                 ],
-                file_name=f"reg_glo_grid_{float(depth):g}km.png",
+                file_name=f"grid_{float(depth):g}km.png",
                 title=f"Grids at ({float(depth):g} km)",
             )
 
@@ -400,7 +400,7 @@ class MergeMethods:
 
         return da
 
-    def plot_combined_map(self, grid_series, file_name, title=None):
+    def plot_combined_grid(self, grid_series, file_name, title=None):
         """Plot a series of multiple grids and save to file.
         
         Args:
