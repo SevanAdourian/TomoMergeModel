@@ -429,10 +429,8 @@ class MergeMethods:
 
         flat_axes = axes.ravel()
         for ax, (label, grid_object) in zip(flat_axes, grid_series):
-            # Re-orient grid: north-up latitude and 180-degree longitude shift.
+            # Extract data, lons, and flipped lats
             data = np.array(grid_object.data, copy=True)
-            data = np.flipud(data)
-            data = np.roll(data, data.shape[1] // 2, axis=1)
 
             lons = np.array(grid_object.lons(), copy=True)
             lats = np.array(grid_object.lats(), copy=True)[::-1]
