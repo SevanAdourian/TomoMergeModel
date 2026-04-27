@@ -1,7 +1,7 @@
 from .Dataset import Dataset
 from .ConfigParams import ConfigParams
 
-import concurrent.futures
+import os
 import numpy as np
 import pyshtools
 import xarray as xr
@@ -151,7 +151,6 @@ class MergeMethods:
             reg_field=reg_field.copy(),
             mask_mode=getattr(self.conf, "mask_mode", "bounds"),
         )
-        # pdb.set_trace()
 
         if self.conf.win_type == "spherical":
             # Multi-taper spherical harmonic window — smooth, tapered edges
@@ -185,7 +184,6 @@ class MergeMethods:
                 f"Unsupported win_type '{self.conf.win_type}'. Expected 'spherical' or 'rectangular'."
             )
 
-        # reg_win_energy_grid.data = np.flipud(reg_win_energy_grid.data)
 
         return reg_win_energy_grid
 
@@ -255,25 +253,8 @@ class MergeMethods:
             f"Unsupported mask_mode '{mode}'. Expected 'bounds' or 'continent'."
         )
 
-    # def apply_window(self, global_grid, global_clm, reg_grid, reg_win_energy_grid):
-    #     """Apply windowing mask to regional grid and merge with global model."""
-
-    #     # - Multiply grid by mask
-    #     reg_grid_masked = reg_grid * reg_win_energy_grid
-    #     reg_clm_masked = pyshtools.SHGrid.expand(reg_grid_masked)
-
-    #     # Global grid 
-
-    #     # Sum regional spectrum inside box (masked) with global spectra outside box (unmasked)
-    #     summed_clm = reg_clm_masked + global_clm
-
-    #     # Plot map and spectra for summed_clm
-
-    #     summed_grid = pyshtools.SHCoeffs.expand(summed_clm)
-    #     return summed_grid
-
-    def apply_window(self, global_grid, global_clm, reg_grid, reg_win_grid,
-                     lcut=60, delta=5):
+    def apply_window(self, global_grid, global_clm, reg_grid, reg_win_grid, depth,
+                     lcut=60, delta=5, plot=True):
         """Merge global and regional models via spectral blending and geographic windowing.
 
         Performs a two-stage merge:
@@ -323,9 +304,21 @@ class MergeMethods:
         merged_grid = global_grid * (1 - reg_win_grid) + blended_grid * reg_win_grid
         merged_clm = merged_grid.expand().pad(lmax)
 
+        if plot:
+            self.plot_combined_grid(
+                grid_series=[
+                    ("regional", reg_grid),
+                    ("global", global_grid),
+                    ("blended", blended_grid),
+                    ("merged", merged_grid),
+                ],
+                file_name=f"grid_{float(depth):g}km.png",
+                title=f"Grids at ({float(depth):g} km)",
+            )
+
         return merged_grid, reg_clm, blended_clm, merged_clm
 
-    def process_slice(self, depth):
+    def process_slice(self, depth, plot=True):
         """Process and merge regional and global models at a single depth slice.
 
         When the requested depth falls within the regional model's depth range,
@@ -370,18 +363,19 @@ class MergeMethods:
                 global_clm,
             )
             summed_grid, reg_clm, blended_clm, merged_clm = self.apply_window(
-                global_grid, global_clm, reg_grid, reg_win_energy_grid
+                global_grid, global_clm, reg_grid, reg_win_energy_grid, depth, plot=plot
             )
-            self.plot_combined_spectra(
-                spectra_series=[
-                    ("regional", reg_clm),
-                    ("global", global_clm),
-                    ("blended", blended_clm),
-                    ("merged", merged_clm),
-                ],
-                file_name=f"spectra_{float(depth):g}km.png",
-                title=f"Power Spectra Comparison ({float(depth):g} km)",
-            )
+            if plot:
+                self.plot_combined_spectra(
+                    spectra_series=[
+                        ("regional", reg_clm),
+                        ("global", global_clm),
+                        ("blended", blended_clm),
+                        ("merged", merged_clm),
+                    ],
+                    file_name=f"spectra_{float(depth):g}km.png",
+                    title=f"Power Spectra Comparison ({float(depth):g} km)",
+                )
         else:
             # Depth is below regional coverage — pass through global model unchanged
             summed_grid = global_grid
@@ -407,15 +401,62 @@ class MergeMethods:
 
         return da
 
-    def plot_map_and_spectra(self, grid_object, clm_object, file_name):
-        """Plot spatial grid and power spectrum side by side and save to file."""
+    def plot_combined_grid(self, grid_series, file_name, title=None):
+        """Plot a series of multiple grids and save to file.
+        
+        Args:
+            grid_series: Iterable of ``(label, grid_object)`` where each
+                ``grid_object`` is a pyshtools SHGrid instance.
+            file_name: Output image path.
+            title: Optional figure title.
+        """
 
-        fig, ax = plt.subplots(
-            1, 1, subplot_kw={"projection": ccrs.PlateCarree()}
+        grid_series = list(grid_series)
+        if len(grid_series) == 0:
+            raise ValueError("grid_series must contain at least one grid")
+
+        nplots = len(grid_series)
+        ncols = int(np.ceil(np.sqrt(nplots)))
+        nrows = int(np.ceil(nplots / ncols))
+
+        fig, axes = plt.subplots(
+            nrows,
+            ncols,
+            figsize=(4 * ncols, 4 * nrows),
+            subplot_kw={"projection": ccrs.PlateCarree()},
+            squeeze=False,
         )
-        grid_object.plot(ax=ax, colorbar="right", cb_label="Power", show=False)
-        fig.legend(loc="upper right")
-        fig.savefig(file_name, dpi=400)
+
+        flat_axes = axes.ravel()
+        for ax, (label, grid_object) in zip(flat_axes, grid_series):
+            # Extract data, lons, and flipped lats
+            data = np.array(grid_object.data, copy=True)
+
+            lons = np.array(grid_object.lons(), copy=True)
+            lats = np.array(grid_object.lats(), copy=True)[::-1]
+
+            img = ax.pcolormesh(
+                lons,
+                lats,
+                data,
+                transform=ccrs.PlateCarree(),
+                shading="auto",
+                cmap="RdBu_r",
+            )
+            ax.coastlines(linewidth=0.5)
+            ax.set_title(str(label))
+            fig.colorbar(img, ax=ax, orientation="horizontal", pad=0.04, shrink=0.85)
+
+        for ax in flat_axes[nplots:]:
+            ax.set_visible(False)
+
+        if title is not None:
+            fig.suptitle(title)
+
+        fig.tight_layout(rect=[0, 0, 1, 0.97] if title is not None else None)
+        os.makedirs("figures", exist_ok=True)
+        save_path = os.path.join("figures", os.path.basename(file_name))
+        fig.savefig(save_path, dpi=400)
         plt.close(fig)
         return
 
@@ -435,7 +476,7 @@ class MergeMethods:
             spectrum = clm_object.spectrum()
             degrees = np.arange(spectrum.shape[0])
 
-            # Skip degree zero for log plotting; it dominates and hides detail.
+            # Plot the power on a logarithmic scale
             ax.semilogy(degrees, spectrum, label=label)
 
         ax.set_xlabel("Spherical harmonic degree (l)")
@@ -446,7 +487,9 @@ class MergeMethods:
         ax.legend(loc="best")
 
         fig.tight_layout()
-        fig.savefig(file_name, dpi=400)
+        os.makedirs("figures", exist_ok=True)
+        save_path = os.path.join("figures", os.path.basename(file_name))
+        fig.savefig(save_path, dpi=400)
         plt.close(fig)
         return
 
@@ -455,11 +498,10 @@ class MergeMethods:
 
         zmesh = lon_lat_field[varname].sel(depth=float(depth))
         zmesh = zmesh.sortby("longitude")
-        # zmesh.assign_coords(latitude=zmesh.latitude[::-1])
-        # zmesh = np.flipud(zmesh.values)
+        
         return zmesh.values
 
-    def merge(self):
+    def merge(self, plot=True):
         """Merge regional and global models across all depth slices.
 
         Iterates over every depth in the regional model, calling
@@ -472,13 +514,11 @@ class MergeMethods:
 
         depths = self.regional_model.depths
 
-        # On Windows, process-based multiprocessing uses "spawn" which re-imports modules.
-        # Using a process Pool with bound methods/self can also hang due to pickling.
-        # A thread pool avoids both issues and is reliable here.
+        # Merge depth-by-depth and concatenate them all together
         merged_arrays = []
         for depth in depths:
             depth_val = float(depth)
-            merged_arrays.append(self.process_slice(depth_val))
+            merged_arrays.append(self.process_slice(depth_val, plot=plot))
 
         # concat returns a DataArray; convert to Dataset immediately
         merged_all_arrays = xr.concat(merged_arrays, dim="depth")
