@@ -62,6 +62,7 @@ class MergeMethods:
             )
         self.regional_variable = regional_variable
         self.global_variable = global_variable
+        self._previous_merged_grid = None
 
     def getRegionalModel(self) -> Dataset:
         """Return the regional model dataset."""
@@ -253,8 +254,39 @@ class MergeMethods:
             f"Unsupported mask_mode '{mode}'. Expected 'bounds' or 'continent'."
         )
 
-    def apply_window(self, global_grid, global_clm, reg_grid, reg_win_grid, depth,
-                     lcut=60, delta=5, plot=True):
+    def _compute_degree_power(self, coeff_array):
+        """Return total power per spherical-harmonic degree."""
+        # coeff_array shape is (2, lmax+1, lmax+1) for real SH coefficients.
+        return np.sum(coeff_array**2, axis=(0, 2))
+
+    def _blend_weights(self, global_clm, reg_clm):
+        """Compute degree-wise blend weights for regional contribution."""
+        lmax = global_clm.lmax
+        degrees = np.arange(lmax + 1)
+
+        mode = getattr(self.conf, "blend_mode", "adaptive")
+        if mode == "logistic":
+            lcut = getattr(self.conf, "blend_lcut", 60)
+            delta = getattr(self.conf, "blend_delta", 5.0)
+            return 1.0 / (1.0 + np.exp(-(degrees - lcut) / delta))
+
+        # Adaptive mode: uncertainty-like inverse-variance weighting via degree power.
+        # Where regional power dominates above its noise floor, its weight increases.
+        g_power = self._compute_degree_power(global_clm.to_array())
+        r_power = self._compute_degree_power(reg_clm.to_array())
+        g_eps = getattr(self.conf, "glo_noise_floor", 1e-12)
+        r_eps = getattr(self.conf, "reg_noise_floor", 1e-12)
+        return (r_power + r_eps) / (r_power + g_power + r_eps + g_eps)
+
+    def apply_window(
+        self,
+        global_grid,
+        global_clm,
+        reg_grid,
+        reg_win_grid,
+        depth,
+        plot=True,
+    ):
         """Merge global and regional models via spectral blending and geographic windowing.
 
         Performs a two-stage merge:
@@ -272,14 +304,10 @@ class MergeMethods:
             reg_grid: Regional model as a pyshtools SHGrid.
             reg_win_grid: Normalised window grid (values in [0, 1]) defining
                 the regional footprint; output of :meth:`create_window`.
-            lcut: Spherical harmonic degree at which the logistic blend
-                transitions from global-dominated to regional-dominated.
-            delta: Steepness of the logistic transition (lower = sharper).
-
         Returns:
             Merged model as a pyshtools SHGrid.
         """
-        
+
         lmax = global_clm.lmax
 
         # Expand regional grid to SH coefficients and match lmax to global
@@ -288,20 +316,31 @@ class MergeMethods:
         G = global_clm.to_array()
         R = reg_clm.to_array()
 
-        # Logistic weight: favours global at low degrees, regional at high degrees
-        degrees = np.arange(lmax + 1)
-        w = 1 / (1 + np.exp(-(degrees - lcut) / delta))
+        # Degree-wise regional weights (adaptive by default).
+        w = self._blend_weights(global_clm=global_clm, reg_clm=reg_clm)
 
         # Blend SH coefficients per degree
         C = np.zeros_like(G)
         for l in range(lmax + 1):
             C[:, l, :l+1] = (1 - w[l]) * G[:, l, :l+1] + w[l] * R[:, l, :l+1]
 
+        # Preserve low-degree global harmonics to protect long-wavelength baseline.
+        preserve_l = min(getattr(self.conf, "preserve_global_low_lmax", 5), lmax)
+        if preserve_l >= 0:
+            for l in range(preserve_l + 1):
+                C[:, l, :l+1] = G[:, l, :l+1]
+
         blended_clm = pyshtools.SHCoeffs.from_array(C)
         blended_grid = blended_clm.expand()
 
         # Composite: global outside the window, blended inside
         merged_grid = global_grid * (1 - reg_win_grid) + blended_grid * reg_win_grid
+
+        # Optional vertical regularization (depth-to-depth smoothing).
+        alpha = getattr(self.conf, "depth_smoothing_alpha", 0.0)
+        if self._previous_merged_grid is not None and alpha > 0.0:
+            merged_grid = (1.0 - alpha) * merged_grid + alpha * self._previous_merged_grid
+
         merged_clm = merged_grid.expand().pad(lmax)
 
         if plot:
@@ -379,6 +418,8 @@ class MergeMethods:
         else:
             # Depth is below regional coverage — pass through global model unchanged
             summed_grid = global_grid
+
+        self._previous_merged_grid = summed_grid
 
         return self.write_model(depth=depth, grid=summed_grid)
 

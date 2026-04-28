@@ -13,6 +13,13 @@ class ConfigParams:
         mask_continents: list[str] | tuple[str, ...] | None = None,
         mask_target: str = "land",
         mask_resolution: str = "110m",
+        blend_mode: str = "adaptive",
+        blend_lcut: int = 60,
+        blend_delta: float = 5.0,
+        preserve_global_low_lmax: int = 5,
+        reg_noise_floor: float = 1e-12,
+        glo_noise_floor: float = 1e-12,
+        depth_smoothing_alpha: float = 0.0,
     ):
         """Initialize configuration parameters for merging regional and global models."""
 
@@ -58,8 +65,34 @@ class ConfigParams:
         self.mask_target = mask_target
         self.mask_resolution = mask_resolution
         self.mask_continents = list(mask_continents) if mask_continents is not None else []
-        
+
         if win_type not in ['spherical', 'rectangular']:
             raise ValueError("win_type must be 'spherical' or 'rectangular'")
         else:
             self.win_type = win_type
+
+        # Blending controls
+        if blend_mode not in ["adaptive", "logistic"]:
+            raise ValueError("blend_mode must be 'adaptive' or 'logistic'")
+        self.blend_mode = blend_mode
+
+        if blend_lcut < 0:
+            raise ValueError("blend_lcut must be non-negative")
+        self.blend_lcut = blend_lcut
+
+        if blend_delta <= 0:
+            raise ValueError("blend_delta must be positive")
+        self.blend_delta = float(blend_delta)
+
+        if preserve_global_low_lmax < 0:
+            raise ValueError("preserve_global_low_lmax must be non-negative")
+        self.preserve_global_low_lmax = preserve_global_low_lmax
+
+        if reg_noise_floor <= 0 or glo_noise_floor <= 0:
+            raise ValueError("reg_noise_floor and glo_noise_floor must be positive")
+        self.reg_noise_floor = float(reg_noise_floor)
+        self.glo_noise_floor = float(glo_noise_floor)
+
+        if not (0.0 <= depth_smoothing_alpha <= 1.0):
+            raise ValueError("depth_smoothing_alpha must be in [0, 1]")
+        self.depth_smoothing_alpha = float(depth_smoothing_alpha)

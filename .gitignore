@@ -6,3 +6,9 @@
 **/data/glad-m*-v*-0.0-n4.nc
 **/data/alaska.nc
 suggested_improvements.txt
+*.egg-info/
+.eggs/
+build/
+dist/
+__pycache__/
+*.pyc
