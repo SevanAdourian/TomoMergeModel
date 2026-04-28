@@ -6,13 +6,33 @@ geostitch is a utility package used to seemlessly merge any regional geo-referen
 
 The examples are taken from seismic tomography, but the package is usable for any geo-referenced dataset (climate, gravity, satellite data, etc...), granted that they are stored in a netcdf file.
 
+Originally, this package was developed for seismic tomography. Some examples and terminology still reflect that origin.
+
+## Best Suited Data
+
+geostitch is best suited for scalar geospatial fields that:
+
+- are defined on latitude/longitude grids (or can be interpolated to regular lat/lon grids),
+- can be represented on a spherical domain,
+- are available as regional and global datasets with compatible physical meaning,
+- are stored in NetCDF-compatible structures.
+
+Typical examples include seismic velocity anomalies, climate fields, gravity/geoid perturbations, and satellite-derived Earth fields.
+
+## Assumptions
+
+- Spherical-harmonic representation is appropriate for the target field and scales of interest.
+- Regional and global inputs describe the same physical quantity (with consistent units/sign conventions).
+- Windowing and blending parameters (`reg_lmax`, `win_lmax`, and blend settings) are tuned for the target application.
+- Interpolation to regular grids does not introduce unacceptable artifacts for the intended interpretation.
+
 ## What Is In This Package
 
 This repo centers around only three classes:
 
-- `Dataset` ([Dataset.py](Dataset.py))
-- `MergeMethods` ([MergeMethods.py](MergeMethods.py))
-- `ConfigParams` ([ConfigParams.py](ConfigParams.py))
+- `Dataset` (`geostitch/Dataset.py`)
+- `MergeMethods` (`geostitch/MergeMethods.py`)
+- `ConfigParams` (`geostitch/ConfigParams.py`)
 
 ## Quick Start
 
@@ -21,7 +41,7 @@ This repo centers around only three classes:
 All dependencies are handled by the conda environment.
 
 ```bash
-conda env create -f environment.yaml
+conda env create -f environment.yml
 conda activate mergemod
 ```
 
@@ -57,12 +77,12 @@ If your source data is ASCII, you can also adapt [ascii_to_netcdf.py](ascii_to_n
 
 ### 3. Run a merge script
 
-You can run [main.py](main.py) directly, or create a minimal script like this:
+You can run [`example/main.py`](example/main.py) directly, or create a minimal script like this:
 
 ```python
-from Dataset import Dataset
-from MergeMethods import MergeMethods
-from ConfigParams import ConfigParams
+from geostitch.Dataset import Dataset
+from geostitch.MergeMethods import MergeMethods
+from geostitch.ConfigParams import ConfigParams
 
 
 def main() -> None:
@@ -110,7 +130,7 @@ if __name__ == "__main__":
 Run it:
 
 ```bash
-python main.py
+python example/main.py
 # or
 python your_merge_script.py
 ```

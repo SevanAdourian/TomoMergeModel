@@ -29,7 +29,14 @@ def main() -> None:
         global_model=global_mod,
     )
     configParams = ConfigParams(
-        239, 30, (197.5, 230.5), (52.65, 71.55), "spherical"
+        200, 60, (197.5, 230.5), (52.65, 71.55),
+        win_type="spherical",
+        # blend_mode="adaptive",
+        preserve_global_low_lmax=30,
+        reg_noise_floor=1e-11,
+        glo_noise_floor=1e-11,
+        blend_lcut=80,
+        blend_delta=10.0
     )
 
     merger = MergeMethods(reg_alaska, global_mod, configParams, "Vs", "vsv")
@@ -38,7 +45,7 @@ def main() -> None:
    
     
     print("Displaying merged maps...")
-    cmap_seismic = cm.vik
+    cmap_seismic = cm.vik_r
     for depth in merged_mod.getDataset().depth.values:
         merged_mod.plot_all_variables(
             depth=depth,

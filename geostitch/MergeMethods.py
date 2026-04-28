@@ -264,20 +264,22 @@ class MergeMethods:
         lmax = global_clm.lmax
         degrees = np.arange(lmax + 1)
 
-        mode = getattr(self.conf, "blend_mode", "adaptive")
+        mode = self.conf.blend_mode
         if mode == "logistic":
-            lcut = getattr(self.conf, "blend_lcut", 60)
-            delta = getattr(self.conf, "blend_delta", 5.0)
+            lcut = self.conf.blend_lcut
+            delta = self.conf.blend_delta
             return 1.0 / (1.0 + np.exp(-(degrees - lcut) / delta))
-
-        # Adaptive mode: uncertainty-like inverse-variance weighting via degree power.
-        # Where regional power dominates above its noise floor, its weight increases.
-        g_power = self._compute_degree_power(global_clm.to_array())
-        r_power = self._compute_degree_power(reg_clm.to_array())
-        g_eps = getattr(self.conf, "glo_noise_floor", 1e-12)
-        r_eps = getattr(self.conf, "reg_noise_floor", 1e-12)
-        return (r_power + r_eps) / (r_power + g_power + r_eps + g_eps)
-
+        elif mode == "adaptive":
+            g_power = self._compute_degree_power(global_clm.to_array())
+            r_power = self._compute_degree_power(reg_clm.to_array())
+            g_eps = self.conf.glo_noise_floor
+            r_eps = self.conf.reg_noise_floor
+            return (r_power + r_eps) / (r_power + g_power + r_eps + g_eps)
+        else:
+            raise ValueError(
+                f"Unsupported blend_mode '{mode}'. Expected 'logistic' or 'adaptive'."
+            )
+        
     def apply_window(
         self,
         global_grid,

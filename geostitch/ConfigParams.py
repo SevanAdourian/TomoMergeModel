@@ -13,12 +13,12 @@ class ConfigParams:
         mask_continents: list[str] | tuple[str, ...] | None = None,
         mask_target: str = "land",
         mask_resolution: str = "110m",
-        blend_mode: str = "adaptive",
-        blend_lcut: int = 60,
-        blend_delta: float = 5.0,
+        blend_mode: str = "logistic",
+        blend_lcut: int = 70,
+        blend_delta: float = 8.0,
         preserve_global_low_lmax: int = 5,
-        reg_noise_floor: float = 1e-12,
-        glo_noise_floor: float = 1e-12,
+        reg_noise_floor: float = 1e-11,
+        glo_noise_floor: float = 1e-11,
         depth_smoothing_alpha: float = 0.0,
     ):
         """Initialize configuration parameters for merging regional and global models."""
